@@ -14,7 +14,7 @@
   },
   "scripts": {
     "watch": "parcel watch",
-    "build": "rm .parcel-cache/* && parcel build"
+    "build": "parcel build --no-cache"
   },
   "dependencies": {
     "parcel": "latest"

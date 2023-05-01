@@ -6,8 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Goose Chase</title>
 </head>
+<style>
+    /* make everything behind the canvas black */
+    body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #111;
+    }
+
+    /* centre the canvas */
+    canvas {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+</style>
 <body>
-    
+    <canvas></canvas>
 </body>
 <script src="build/main.js"></script>
 </html>
