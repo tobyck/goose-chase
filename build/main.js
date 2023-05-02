@@ -142,10 +142,10 @@
       this[globalName] = mainExports;
     }
   }
-})({"8m48g":[function(require,module,exports) {
+})({"gkjlx":[function(require,module,exports) {
 var global = arguments[3];
 var HMR_HOST = null;
-var HMR_PORT = 61200;
+var HMR_PORT = 55042;
 var HMR_SECURE = false;
 var HMR_ENV_HASH = "a25e589c66234a52";
 module.bundle.HMR_BUNDLE_ID = "2a909bfa0196f4b2";
@@ -569,6 +569,7 @@ function hmrAccept(bundle, id) {
 parcelHelpers.defineInteropFlag(exports);
 var _ecs = require("./engine/ecs");
 var _mapgen = require("./engine/mapgen");
+var _render = require("./systems/render");
 var _util = require("./util");
 class Game {
     ecs = new (0, _ecs.ECS)(this);
@@ -614,6 +615,8 @@ class Game {
             images.forEach((image, index)=>this.images[files[index]] = image);
             // generate the rooms using the function in mapgen.ts
             this.rooms = (0, _mapgen.generateMap)(this);
+            // add systems
+            this.ecs.systemManager.addSystem(new (0, _render.RenderSystem)());
             // start the game loop
             this.gameLoop();
         });
@@ -635,63 +638,9 @@ class Game {
     }
 }
 exports.default = Game;
-const game = new Game(document.querySelector("canvas"), 1);
+const game = new Game(document.querySelector("canvas"), 4);
 
-},{"./engine/mapgen":"lyfm3","./util":"9OSfS","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH","./engine/ecs":"bTIAG"}],"lyfm3":[function(require,module,exports) {
-/* 
- * engine/mapgen.ts
- *
- * This file is responsible for generating the map. The Room object comes with
- * the floor tiles, but the generateMap adds walls and other entities like food.
- */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "generateMap", ()=>generateMap);
-var _components = require("../components/components");
-var _render = require("../systems/render");
-var _util = require("../util");
-var _room = require("./room");
-const generateMap = (game)=>{
-    const rooms = [];
-    for(let y = 0; y < game.roomCount.y; y++)for(let x = 0; x < game.roomCount.x; x++)rooms.push(new (0, _room.Room)(game, new (0, _util.Vec)(x, y)));
-    /* TEST */ const wallEntity = game.ecs.createEntity();
-    game.ecs.addComponent(wallEntity, _components.PositionComponent, [
-        new (0, _util.Vec)(0, 0),
-        new (0, _util.Vec)(0, 0)
-    ]);
-    game.ecs.addComponent(wallEntity, _components.ImageComponent, [
-        game.images["tiles"],
-        0,
-        48,
-        16,
-        16
-    ]);
-    game.ecs.systemManager.addSystem(new (0, _render.RenderSystem)());
-    /* END TEST */ return rooms;
-};
-
-},{"../components/components":"jPTTN","../systems/render":"lpuAS","../util":"9OSfS","./room":"lr0cD","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"jPTTN":[function(require,module,exports) {
-// export all components from this file to make importing them easier
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "PositionComponent", ()=>(0, _position.PositionComponent));
-parcelHelpers.export(exports, "ImageComponent", ()=>(0, _image.ImageComponent));
-var _position = require("./position");
-var _image = require("./image");
-
-},{"./position":"kIFaG","./image":"ia3WO","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"kIFaG":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "PositionComponent", ()=>PositionComponent);
-var _ecs = require("../engine/ecs");
-class PositionComponent extends (0, _ecs.Component) {
-    constructor(position, room){
-        super();
-        this.position = position;
-        this.room = room;
-    }
-}
-
-},{"../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"bTIAG":[function(require,module,exports) {
+},{"./engine/ecs":"bTIAG","./engine/mapgen":"lyfm3","./util":"9OSfS","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH","./systems/render":"lpuAS"}],"bTIAG":[function(require,module,exports) {
 /* 
  * engine/ecs.ts
  *
@@ -783,7 +732,7 @@ class ECS {
         this.entities.splice(this.entities.indexOf(entity), 1);
     }
     hasComponent(entity, component) {
-        return this.componentManagers.get(component).getComponent(entity) !== undefined;
+        return this.componentManagers.get(component)?.getComponent(entity) !== undefined;
     }
     addComponent(entity, component, args) {
         if (!this.componentManagers.has(component)) this.componentManagers.set(component, new ComponentManager());
@@ -824,49 +773,150 @@ exports.export = function(dest, destName, get) {
     });
 };
 
-},{}],"ia3WO":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "ImageComponent", ()=>ImageComponent);
-var _ecs = require("../engine/ecs");
-class ImageComponent extends (0, _ecs.Component) {
-    constructor(image, sx, sy, sw, sh){
-        super();
-        this.image = image;
-        this.sx = sx;
-        this.sy = sy;
-        this.sw = sw;
-        this.sh = sh;
-    }
-}
-
-},{"../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"lpuAS":[function(require,module,exports) {
+},{}],"lyfm3":[function(require,module,exports) {
 /* 
- * systems/render.ts
+ * engine/mapgen.ts
  *
- * The system responsible for rendering every single entity in the game.
- * Properties of the image component can be changed in other 
- * systems to create animations, because this systems renders whichever 
- * part of the image is specified in the component at the time of rendering.
+ * This file is responsible for generating the map.
  */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "RenderSystem", ()=>RenderSystem);
+parcelHelpers.export(exports, "generateMap", ()=>generateMap);
 var _components = require("../components/components");
-var _ecs = require("../engine/ecs");
-class RenderSystem extends (0, _ecs.System) {
-    constructor(){
-        super([
-            _components.PositionComponent,
-            _components.ImageComponent
-        ], (0, _ecs.SystemTrigger).Render, (game, entity)=>{
-            const positionComponent = game.ecs.getComponent(entity, _components.PositionComponent);
-            const imageComponent = game.ecs.getComponent(entity, _components.ImageComponent);
-            game.ctx.drawImage(imageComponent.image, imageComponent.sx, imageComponent.sy, imageComponent.sw, imageComponent.sh, positionComponent.position.x, positionComponent.position.y, game.tileWidth, game.tileWidth);
-        });
+var _util = require("../util");
+var _room = require("./room");
+/* 
+ * Given the minimum distance from the side of the room, and the width of the door
+ * return an array of numbers representing where the door is. For #####...## 
+ * (where # is a wall and . is a floor tile i.e. the door leading into another room)
+ * the array would be [5, 6, 7], sideWidth would be 10, and doorWidth would be 3.
+ */ const generateDoor = (minDistFromSide, sideWidth, doorWidth)=>{
+    // first tile of the door
+    const start = Math.floor(Math.random() * (sideWidth - minDistFromSide * 2 - (doorWidth - 1))) + minDistFromSide;
+    // return the range [start, start + doorWidth]
+    return Array.from({
+        length: doorWidth
+    }, (_, i)=>start + i);
+};
+const generateMap = (game)=>{
+    const rooms = [];
+    for(let roomY = 0; roomY < game.roomCount.y; roomY++)for(let roomX = 0; roomX < game.roomCount.x; roomX++){
+        const roomPos = new (0, _util.Vec)(roomX, roomY);
+        // add the room with only the floor tiles
+        rooms.push(new (0, _room.Room)(game, roomPos));
+        // generate doors for each side of the room
+        const doors = {
+            top: generateDoor(5, game.roomSize.x, 4),
+            bottom: generateDoor(5, game.roomSize.x, 4),
+            left: generateDoor(3, game.roomSize.y, 3),
+            right: generateDoor(3, game.roomSize.y, 3)
+        };
+        // remove the door that would lead outside the map
+        if (roomX === 0) doors.left = [];
+        if (roomY === 0) doors.top = [];
+        if (roomX === game.roomCount.x - 1) doors.right = [];
+        if (roomY === game.roomCount.y - 1) doors.bottom = [];
+        // for each tile position in the room
+        for(let y = 0; y < game.roomSize.y; y++){
+            for(let x = 0; x < game.roomSize.x; x++)if (x === 0 || y === 0 || x === game.roomSize.x - 1 || y === game.roomSize.y - 1) {
+                // create an entity with no components
+                const wallEntity = game.ecs.createEntity();
+                // add a position component with the pixel position and room position
+                game.ecs.addComponent(wallEntity, _components.PositionComponent, [
+                    new (0, _util.Vec)(x * game.tileWidth, y * game.tileWidth),
+                    roomPos
+                ]);
+                // 2nd and third args for ImageComponent (see componentns/image.ts)
+                let frame;
+                /*
+                         * The following if/else statements select the correct frame 
+                         * in the spritesheet for the wall based on it's position.
+                         * Unfortunately it's not very readable because it's hardcoded
+                         * and there isn't really a better way to do it :(
+                         */ if (x === 0) {
+                    if (y === 0) frame = [
+                        0,
+                        48
+                    ];
+                    else if (y === game.roomSize.y - 1) frame = [
+                        32,
+                        48
+                    ];
+                    else if (y === doors.left[0] - 1) frame = [
+                        48,
+                        32
+                    ];
+                    else if (y === doors.left[doors.left.length - 1] + 1) frame = [
+                        16,
+                        32
+                    ];
+                    else if (!doors.left.includes(y)) frame = [
+                        48,
+                        16
+                    ];
+                } else if (x === game.roomSize.x - 1) {
+                    if (y === 0) frame = [
+                        16,
+                        48
+                    ];
+                    else if (y === game.roomSize.y - 1) frame = [
+                        48,
+                        48
+                    ];
+                    else if (y === doors.right[0] - 1) frame = [
+                        32,
+                        32
+                    ];
+                    else if (y === doors.right[doors.right.length - 1] + 1) frame = [
+                        0,
+                        32
+                    ];
+                    else if (!doors.right.includes(y)) frame = [
+                        16,
+                        16
+                    ];
+                } else if (y === 0) {
+                    if (x === doors.top[0] - 1) frame = [
+                        48,
+                        32
+                    ];
+                    else if (x === doors.top[doors.top.length - 1] + 1) frame = [
+                        32,
+                        32
+                    ];
+                    else if (!doors.top.includes(x)) frame = [
+                        0,
+                        16
+                    ];
+                } else if (y === game.roomSize.y - 1) {
+                    if (x === doors.bottom[0] - 1) frame = [
+                        16,
+                        32
+                    ];
+                    else if (x === doors.bottom[doors.bottom.length - 1] + 1) frame = [
+                        0,
+                        32
+                    ];
+                    else if (!doors.bottom.includes(x)) frame = [
+                        32,
+                        16
+                    ];
+                }
+                game.ecs.addComponent(wallEntity, _components.ImageComponent, [
+                    game.images["tiles"],
+                    ...frame ?? [
+                        0,
+                        0
+                    ],
+                    16,
+                    16
+                ]);
+            }
+        }
     }
-}
+    return rooms;
+};
 
-},{"../components/components":"jPTTN","../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"9OSfS":[function(require,module,exports) {
+},{"../util":"9OSfS","./room":"lr0cD","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH","../components/components":"jPTTN"}],"9OSfS":[function(require,module,exports) {
 /* 
  * util.ts
  *
@@ -913,8 +963,7 @@ class Room {
         this.pos = pos;
         for(let y = 0; y < this.game.roomSize.y; y++){
             this.tiles.push([]); // push an empty tile array
-            for(let x = 0; x < this.game.roomSize.x; x++)if (x === 0 || y === 0 || x === this.game.roomSize.x - 1 || y === this.game.roomSize.y - 1) this.tiles[y].push(Tile.ShortGrass);
-            else {
+            for(let x = 0; x < this.game.roomSize.x; x++){
                 const tile = Math.random() < .8 // 80% chance of short grass
                  ? Tile.ShortGrass : Math.random() < .7 ? Tile.TallGrass : Math.random() < .5 ? Tile.Flowers1 : Tile.Flowers2;
                 this.tiles[y].push(tile);
@@ -938,5 +987,69 @@ class Room {
     }
 }
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH","../util":"9OSfS","../components/components":"jPTTN"}]},["8m48g","2G5F2"], "2G5F2", "parcelRequirec2fe")
+},{"../components/components":"jPTTN","../util":"9OSfS","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"jPTTN":[function(require,module,exports) {
+// export all components from this file to make importing them easier
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "PositionComponent", ()=>(0, _position.PositionComponent));
+parcelHelpers.export(exports, "ImageComponent", ()=>(0, _image.ImageComponent));
+var _position = require("./position");
+var _image = require("./image");
+
+},{"./position":"kIFaG","./image":"ia3WO","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"kIFaG":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "PositionComponent", ()=>PositionComponent);
+var _ecs = require("../engine/ecs");
+class PositionComponent extends (0, _ecs.Component) {
+    constructor(position, room){
+        super();
+        this.position = position;
+        this.room = room;
+    }
+}
+
+},{"../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"ia3WO":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "ImageComponent", ()=>ImageComponent);
+var _ecs = require("../engine/ecs");
+class ImageComponent extends (0, _ecs.Component) {
+    constructor(image, sx, sy, sw, sh){
+        super();
+        this.image = image;
+        this.sx = sx;
+        this.sy = sy;
+        this.sw = sw;
+        this.sh = sh;
+    }
+}
+
+},{"../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"lpuAS":[function(require,module,exports) {
+/* 
+ * systems/render.ts
+ *
+ * The system responsible for rendering every single entity in the game.
+ * Properties of the image component can be changed in other 
+ * systems to create animations, because this systems renders whichever 
+ * part of the image is specified in the component at the time of rendering.
+ */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "RenderSystem", ()=>RenderSystem);
+var _components = require("../components/components");
+var _ecs = require("../engine/ecs");
+class RenderSystem extends (0, _ecs.System) {
+    constructor(){
+        super([
+            _components.PositionComponent,
+            _components.ImageComponent
+        ], (0, _ecs.SystemTrigger).Render, (game, entity)=>{
+            const positionComponent = game.ecs.getComponent(entity, _components.PositionComponent);
+            const imageComponent = game.ecs.getComponent(entity, _components.ImageComponent);
+            game.ctx.drawImage(imageComponent.image, imageComponent.sx, imageComponent.sy, imageComponent.sw, imageComponent.sh, positionComponent.position.x, positionComponent.position.y, game.tileWidth, game.tileWidth);
+        });
+    }
+}
+
+},{"../components/components":"jPTTN","../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}]},["gkjlx","2G5F2"], "2G5F2", "parcelRequirec2fe")
 

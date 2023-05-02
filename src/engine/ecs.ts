@@ -128,7 +128,7 @@ export class ECS {
     }
 
     hasComponent(entity: Entity, component: Component): boolean {
-        return this.componentManagers.get(component).getComponent(entity) !== undefined;
+        return this.componentManagers.get(component)?.getComponent(entity) !== undefined;
     }
 
     addComponent(

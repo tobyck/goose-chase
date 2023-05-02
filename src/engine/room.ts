@@ -32,24 +32,15 @@ export class Room {
         for (let y = 0; y < this.game.roomSize.y; y++) { // for each row
             this.tiles.push([]); // push an empty tile array
             for (let x = 0; x < this.game.roomSize.x; x++) { // for each column
-                if (
-                    x === 0 ||
-                    y === 0 ||
-                    x === this.game.roomSize.x - 1 ||
-                    y === this.game.roomSize.y - 1
-                ) { // if the tile is on the edge make it short grass (plain green)
-                    this.tiles[y].push(Tile.ShortGrass);
-                } else {
-                    const tile = Math.random() < .8 // 80% chance of short grass
-                        ? Tile.ShortGrass
-                        : Math.random() < .7
-                            ? Tile.TallGrass
-                            : Math.random() < .5
-                                ? Tile.Flowers1
-                                : Tile.Flowers2;
+                const tile = Math.random() < .8 // 80% chance of short grass
+                    ? Tile.ShortGrass
+                    : Math.random() < .7
+                        ? Tile.TallGrass
+                        : Math.random() < .5
+                            ? Tile.Flowers1
+                            : Tile.Flowers2;
 
-                    this.tiles[y].push(tile);
-                }
+                this.tiles[y].push(tile);
             }
         }
     }

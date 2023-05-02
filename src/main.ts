@@ -11,6 +11,7 @@
 import { ECS, SystemTrigger } from "./engine/ecs";
 import { generateMap } from "./engine/mapgen";
 import { Room } from "./engine/room";
+import { RenderSystem } from "./systems/render";
 import { Vec } from "./util";
 
 export default class Game {
@@ -96,6 +97,9 @@ export default class Game {
             // generate the rooms using the function in mapgen.ts
             this.rooms = generateMap(this);
 
+            // add systems
+            this.ecs.systemManager.addSystem(new RenderSystem());
+
             // start the game loop
             this.gameLoop();
         });
@@ -113,6 +117,7 @@ export default class Game {
         // update all systems triggerd by rendering
         this.ecs.systemManager.updateSystems(SystemTrigger.Render);
 
+
         // request the next frame
         requestAnimationFrame(() => this.gameLoop());
     }
@@ -124,4 +129,4 @@ export default class Game {
     }
 }
 
-const game = new Game(document.querySelector("canvas"), 1);
+const game = new Game(document.querySelector("canvas"), 4);
