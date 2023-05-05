@@ -142,10 +142,10 @@
       this[globalName] = mainExports;
     }
   }
-})({"gkjlx":[function(require,module,exports) {
+})({"55rT5":[function(require,module,exports) {
 var global = arguments[3];
 var HMR_HOST = null;
-var HMR_PORT = 55042;
+var HMR_PORT = 1234;
 var HMR_SECURE = false;
 var HMR_ENV_HASH = "a25e589c66234a52";
 module.bundle.HMR_BUNDLE_ID = "2a909bfa0196f4b2";
@@ -567,17 +567,26 @@ function hmrAccept(bundle, id) {
  * handles rendering of room.
  */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
+var _components = require("./components");
+var _controllable = require("./systems/controllable");
 var _ecs = require("./engine/ecs");
 var _mapgen = require("./engine/mapgen");
 var _render = require("./systems/render");
 var _util = require("./util");
+var _walking = require("./systems/walking");
 class Game {
     ecs = new (0, _ecs.ECS)(this);
     images = {};
+    // object to store which keys are currently pressed
+    keys = {};
     constructor(canvas, level){
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
         this.level = level;
+        // onkeydown set the key in the keys object to true
+        onkeydown = (event)=>this.keys[event.key.toLowerCase()] = true;
+        // onkeyup set it to false
+        onkeyup = (event)=>this.keys[event.key.toLowerCase()] = false;
         // level 1: 1x1
         // level 2: 2x1
         // level 3: 2x2
@@ -599,7 +608,8 @@ class Game {
         this.ctx.imageSmoothingEnabled = false;
         // pre-load images
         const files = [
-            "tiles"
+            "tiles",
+            "player"
         ]; // list of filenames without extension
         const promises = []; // list of promises, one for each image
         // create a promise for each image
@@ -615,22 +625,44 @@ class Game {
             images.forEach((image, index)=>this.images[files[index]] = image);
             // generate the rooms using the function in mapgen.ts
             this.rooms = (0, _mapgen.generateMap)(this);
+            // add the player
+            const player = this.ecs.createEntity();
+            this.ecs.addComponent(player, _components.ImageComponent, [
+                this.images["player"],
+                0,
+                0,
+                16,
+                16
+            ]);
+            this.ecs.addComponent(player, _components.PositionComponent, [
+                new (0, _util.Vec)(100, 100),
+                this.room
+            ]);
+            this.ecs.addComponent(player, _components.SpeedComponent, [
+                this.tileWidth / 20
+            ]); // move 1/20 of a tile per frame
+            this.ecs.addComponent(player, _components.WalkingComponent);
+            this.ecs.addComponent(player, _components.ControllableComponent);
+            this.ecs.addComponent(player, _components.HitboxComponent, [
+                new (0, _util.Vec)(2, 0).scaled(16, this.tileWidth),
+                new (0, _util.Vec)(12, 16).scaled(16, this.tileWidth)
+            ]);
             // add systems
+            this.ecs.systemManager.addSystem(new (0, _controllable.ControllableSystem)());
+            this.ecs.systemManager.addSystem(new (0, _walking.WalkingSystem)());
             this.ecs.systemManager.addSystem(new (0, _render.RenderSystem)());
             // start the game loop
-            this.gameLoop();
+            this.tick();
         });
     }
     // re-render the whole game every frame using requestAnimationFrame
-    gameLoop() {
-        // clear the whole canvas
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    tick() {
         // find the current room and render 
         this.currentRoom.render();
         // update all systems triggerd by rendering
-        this.ecs.systemManager.updateSystems((0, _ecs.SystemTrigger).Render);
+        this.ecs.systemManager.updateSystems((0, _ecs.SystemTrigger).Tick);
         // request the next frame
-        requestAnimationFrame(()=>this.gameLoop());
+        requestAnimationFrame(()=>this.tick());
     }
     // getter function to find the current room
     get currentRoom() {
@@ -640,7 +672,68 @@ class Game {
 exports.default = Game;
 const game = new Game(document.querySelector("canvas"), 4);
 
-},{"./engine/ecs":"bTIAG","./engine/mapgen":"lyfm3","./util":"9OSfS","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH","./systems/render":"lpuAS"}],"bTIAG":[function(require,module,exports) {
+},{"./components":"hVzNr","./systems/controllable":"6hz4e","./engine/ecs":"bTIAG","./engine/mapgen":"lyfm3","./systems/render":"lpuAS","./util":"9OSfS","./systems/walking":"jMNjN","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"hVzNr":[function(require,module,exports) {
+/* 
+ * components.ts
+ *
+ * Stores all components in the game.
+ */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "PositionComponent", ()=>PositionComponent);
+parcelHelpers.export(exports, "ImageComponent", ()=>ImageComponent);
+parcelHelpers.export(exports, "SpeedComponent", ()=>SpeedComponent);
+// doesn't need data, just flags
+parcelHelpers.export(exports, "ControllableComponent", ()=>ControllableComponent);
+parcelHelpers.export(exports, "WalkingComponent", ()=>WalkingComponent);
+parcelHelpers.export(exports, "HitboxComponent", ()=>HitboxComponent);
+var _ecs = require("./engine/ecs");
+class PositionComponent extends (0, _ecs.Component) {
+    constructor(pixels, room){
+        super();
+        this.pixels = pixels;
+        this.room = room;
+    }
+}
+class ImageComponent extends (0, _ecs.Component) {
+    lastFrameChange = Date.now();
+    constructor(image, sx, sy, sw, sh){
+        super();
+        this.image = image;
+        this.sx = sx;
+        this.sy = sy;
+        this.sw = sw;
+        this.sh = sh;
+    }
+}
+class SpeedComponent extends (0, _ecs.Component) {
+    constructor(velocity){
+        super();
+        this.velocity = velocity;
+    }
+    speedsTo(dx, dy) {
+        const hypot = Math.hypot(dx, dy);
+        return [
+            dx / hypot * this.velocity,
+            dy / hypot * this.velocity
+        ];
+    }
+}
+class ControllableComponent extends (0, _ecs.Component) {
+}
+class WalkingComponent extends (0, _ecs.Component) {
+}
+class HitboxComponent extends (0, _ecs.Component) {
+    constructor(position, size){
+        super();
+        this.position = position;
+        this.size = size;
+    }
+    getActualHitbox(entityPos) {
+        return new HitboxComponent(this.position.shifted(entityPos.pixels), this.size);
+    }
+}
+
+},{"./engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"bTIAG":[function(require,module,exports) {
 /* 
  * engine/ecs.ts
  *
@@ -680,7 +773,7 @@ class ComponentManager {
 }
 let SystemTrigger;
 (function(SystemTrigger) {
-    SystemTrigger[SystemTrigger["Render"] = 0] = "Render";
+    SystemTrigger[SystemTrigger["Tick"] = 0] = "Tick";
 })(SystemTrigger || (SystemTrigger = {}));
 class System {
     requiredComponents = [];
@@ -705,17 +798,7 @@ class SystemManager {
         // get entities in the current room
         const entities = this.game.currentRoom.entities;
         // for each system with the specified trigger
-        for (const system of systems)for (const entity of entities){
-            // assume the entity has all required components until proven otherwise
-            let hasRequiredComponents = true;
-            for (const requiredComponent of system.requiredComponents)// if the entity doesn't have a required component, it shouldn't be updated
-            if (!this.game.ecs.hasComponent(entity, requiredComponent)) {
-                hasRequiredComponents = false;
-                break;
-            }
-            // update the entity if it has all required components
-            if (hasRequiredComponents) system.update(this.game, entity);
-        }
+        for (const system of systems)for (const entity of this.game.ecs.entitiesWithComponents(this.game.currentRoom, system.requiredComponents))system.update(this.game, entity);
     }
 }
 class ECS {
@@ -724,22 +807,43 @@ class ECS {
     constructor(game){
         this.systemManager = new SystemManager(game);
     }
+    // add an entity with a unique ID
     createEntity() {
-        this.entities.push(this.entities.length);
-        return this.entities.length - 1;
+        let entityId = this.entities.length;
+        // find the next available entity ID if the current one is taken
+        while(this.entities.includes(entityId))entityId++;
+        // add the entity to the list of entities
+        this.entities.push(entityId);
+        return entityId;
     }
+    // remove an entity and all of its components
     removeEntity(entity) {
         this.entities.splice(this.entities.indexOf(entity), 1);
+        for (const componentManager of this.componentManagers.values())if (componentManager.components[entity]) componentManager.removeComponent(entity);
     }
     hasComponent(entity, component) {
         return this.componentManagers.get(component)?.getComponent(entity) !== undefined;
     }
-    addComponent(entity, component, args) {
+    addComponent(entity, component, args = []) {
         if (!this.componentManagers.has(component)) this.componentManagers.set(component, new ComponentManager());
         this.componentManagers.get(component).addComponent(entity, new component(...args));
     }
     getComponent(entity, component) {
         return this.componentManagers.get(component).getComponent(entity);
+    }
+    entitiesWithComponents(room, components) {
+        const entities = [];
+        for (const entity of room.entities){
+            // assume the entity has all required components until proven otherwise
+            let hasComponents = true;
+            for (const component of components)// if the entity doesn't have a required component it shouldn't be added to the list
+            if (!this.hasComponent(entity, component)) {
+                hasComponents = false;
+                break;
+            }
+            if (hasComponents) entities.push(entity);
+        }
+        return entities;
     }
 }
 
@@ -773,15 +877,72 @@ exports.export = function(dest, destName, get) {
     });
 };
 
-},{}],"lyfm3":[function(require,module,exports) {
+},{}],"6hz4e":[function(require,module,exports) {
+/* 
+ * systems/controllable.ts
+ *
+ * This system is responsible for adjusting the horizontal and vertical speed
+ * (stored in the speed component) of controllable entities based on keynoard
+ * input, and moving the entity between rooms when it goes through a door. 
+ * The system doesn't actually move the entity - that's done by the walking 
+ * system in walking.ts.
+ */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "ControllableSystem", ()=>ControllableSystem);
+var _components = require("../components");
+var _ecs = require("../engine/ecs");
+class ControllableSystem extends (0, _ecs.System) {
+    constructor(){
+        super([
+            _components.ControllableComponent,
+            _components.SpeedComponent,
+            _components.PositionComponent
+        ], (0, _ecs.SystemTrigger).Tick, (game, entity)=>{
+            // get components
+            const speed = game.ecs.getComponent(entity, _components.SpeedComponent);
+            const position = game.ecs.getComponent(entity, _components.PositionComponent);
+            if (game.keys["a"] || game.keys["arrowleft"]) {
+                if (game.keys["w"] || game.keys["arrowup"]) [speed.speedX, speed.speedY] = speed.speedsTo(-1, -1);
+                else if (game.keys["s"] || game.keys["arrowdown"]) [speed.speedX, speed.speedY] = speed.speedsTo(-1, 1);
+                else [speed.speedX, speed.speedY] = speed.speedsTo(-1, 0);
+            } else if (game.keys["d"] || game.keys["arrowright"]) {
+                if (game.keys["w"] || game.keys["arrowup"]) [speed.speedX, speed.speedY] = speed.speedsTo(1, -1);
+                else if (game.keys["s"] || game.keys["arrowdown"]) [speed.speedX, speed.speedY] = speed.speedsTo(1, 1);
+                else [speed.speedX, speed.speedY] = speed.speedsTo(1, 0);
+            } else if (game.keys["w"] || game.keys["arrowup"]) [speed.speedX, speed.speedY] = speed.speedsTo(0, -1);
+            else if (game.keys["s"] || game.keys["arrowdown"]) [speed.speedX, speed.speedY] = speed.speedsTo(0, 1);
+            else {
+                speed.speedX = 0;
+                speed.speedY = 0;
+            }
+            // make the controllable entities go to the other side of the next room when they go through a door
+            if (position.pixels.x < -(game.tileWidth / 2) && position.room.x > 0) {
+                position.room.x--;
+                position.pixels.x = game.tileWidth * game.roomSize.x - game.tileWidth / 2;
+            } else if (position.pixels.x > game.tileWidth * game.roomSize.x - game.tileWidth / 2 && position.room.x < game.roomSize.x - 1) {
+                position.room.x++;
+                position.pixels.x = -(game.tileWidth / 2);
+            } else if (position.pixels.y < -(game.tileWidth / 2) && position.room.y > 0) {
+                position.room.y--;
+                position.pixels.y = game.tileWidth * game.roomSize.y - game.tileWidth / 2;
+            } else if (position.pixels.y > game.tileWidth * game.roomSize.y - game.tileWidth / 2 && position.room.y < game.roomSize.y - 1) {
+                position.room.y++;
+                position.pixels.y = -(game.tileWidth / 2);
+            }
+        });
+    }
+}
+
+},{"../components":"hVzNr","../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"lyfm3":[function(require,module,exports) {
 /* 
  * engine/mapgen.ts
  *
- * This file is responsible for generating the map.
+ * This file is responsible for generating the map (generating rooms 
+ * and adding entities to them).
  */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "generateMap", ()=>generateMap);
-var _components = require("../components/components");
+var _components = require("../components");
 var _util = require("../util");
 var _room = require("./room");
 /* 
@@ -801,20 +962,39 @@ const generateMap = (game)=>{
     const rooms = [];
     for(let roomY = 0; roomY < game.roomCount.y; roomY++)for(let roomX = 0; roomX < game.roomCount.x; roomX++){
         const roomPos = new (0, _util.Vec)(roomX, roomY);
-        // add the room with only the floor tiles
-        rooms.push(new (0, _room.Room)(game, roomPos));
+        const room = new (0, _room.Room)(game, roomPos);
         // generate doors for each side of the room
-        const doors = {
+        room.doors = {
             top: generateDoor(5, game.roomSize.x, 4),
             bottom: generateDoor(5, game.roomSize.x, 4),
             left: generateDoor(3, game.roomSize.y, 3),
             right: generateDoor(3, game.roomSize.y, 3)
         };
-        // remove the door that would lead outside the map
-        if (roomX === 0) doors.left = [];
-        if (roomY === 0) doors.top = [];
-        if (roomX === game.roomCount.x - 1) doors.right = [];
-        if (roomY === game.roomCount.y - 1) doors.bottom = [];
+        // remove doors that would lead outside the map
+        if (roomX === 0) room.doors.left = []; // if the room is on the left edge of the map, remove the left door
+        if (roomY === 0) room.doors.top = []; // if the room is on the top edge, remove the top door
+        if (roomX === game.roomCount.x - 1) room.doors.right = []; // and so on...
+        if (roomY === game.roomCount.y - 1) room.doors.bottom = [];
+        // function to get the room at a given vector from the local rooms array
+        const roomAtVec = (vec)=>rooms.find((room)=>(0, _util.Vec).equal(room.pos, vec));
+        // takes a door from another room if there it's there
+        const takeDoorFrom = (from, to, door // which door to take
+        )=>{
+            if (!roomAtVec(from)) return; // if there's no room there, return
+            to.doors[door] = roomAtVec(from).doors[// get the opposite door
+            ({
+                top: "bottom",
+                bottom: "top",
+                left: "right",
+                right: "left"
+            })[door]];
+        };
+        // remove doors if there's a room on the other side
+        takeDoorFrom(roomPos.shifted(new (0, _util.Vec)(0, -1)), room, "top");
+        takeDoorFrom(roomPos.shifted(new (0, _util.Vec)(0, 1)), room, "bottom");
+        takeDoorFrom(roomPos.shifted(new (0, _util.Vec)(-1, 0)), room, "left");
+        takeDoorFrom(roomPos.shifted(new (0, _util.Vec)(1, 0)), room, "right");
+        rooms.push(room);
         // for each tile position in the room
         for(let y = 0; y < game.roomSize.y; y++){
             for(let x = 0; x < game.roomSize.x; x++)if (x === 0 || y === 0 || x === game.roomSize.x - 1 || y === game.roomSize.y - 1) {
@@ -827,6 +1007,11 @@ const generateMap = (game)=>{
                 ]);
                 // 2nd and third args for ImageComponent (see componentns/image.ts)
                 let frame;
+                // args for HitboxComponent (x, y, width, height)
+                let hitbox = [
+                    new (0, _util.Vec)(0, 0),
+                    new (0, _util.Vec)(16, 16)
+                ]; // pixels on the spritesheet
                 /*
                          * The following if/else statements select the correct frame 
                          * in the spritesheet for the wall based on it's position.
@@ -841,18 +1026,35 @@ const generateMap = (game)=>{
                         32,
                         48
                     ];
-                    else if (y === doors.left[0] - 1) frame = [
-                        48,
-                        32
-                    ];
-                    else if (y === doors.left[doors.left.length - 1] + 1) frame = [
-                        16,
-                        32
-                    ];
-                    else if (!doors.left.includes(y)) frame = [
-                        48,
-                        16
-                    ];
+                    else if (y === room.doors.left[0] - 1) {
+                        frame = [
+                            48,
+                            32
+                        ];
+                        hitbox = [
+                            new (0, _util.Vec)(0, 0),
+                            new (0, _util.Vec)(14, 14)
+                        ];
+                    } else if (y === room.doors.left[room.doors.left.length - 1] + 1) {
+                        frame = [
+                            16,
+                            32
+                        ];
+                        hitbox = [
+                            new (0, _util.Vec)(0, 2),
+                            new (0, _util.Vec)(14, 14)
+                        ];
+                    } else if (!room.doors.left.includes(y)) {
+                        frame = [
+                            48,
+                            16
+                        ];
+                        hitbox = [
+                            new (0, _util.Vec)(0, 0),
+                            new (0, _util.Vec)(14, 16)
+                        ];
+                    } else // don't add a wall if there's a door
+                    game.ecs.removeEntity(wallEntity);
                 } else if (x === game.roomSize.x - 1) {
                     if (y === 0) frame = [
                         16,
@@ -862,44 +1064,92 @@ const generateMap = (game)=>{
                         48,
                         48
                     ];
-                    else if (y === doors.right[0] - 1) frame = [
-                        32,
-                        32
-                    ];
-                    else if (y === doors.right[doors.right.length - 1] + 1) frame = [
-                        0,
-                        32
-                    ];
-                    else if (!doors.right.includes(y)) frame = [
-                        16,
-                        16
-                    ];
+                    else if (y === room.doors.right[0] - 1) {
+                        frame = [
+                            32,
+                            32
+                        ];
+                        hitbox = [
+                            new (0, _util.Vec)(2, 0),
+                            new (0, _util.Vec)(14, 14)
+                        ];
+                    } else if (y === room.doors.right[room.doors.right.length - 1] + 1) {
+                        frame = [
+                            0,
+                            32
+                        ];
+                        hitbox = [
+                            new (0, _util.Vec)(2, 2),
+                            new (0, _util.Vec)(14, 14)
+                        ];
+                    } else if (!room.doors.right.includes(y)) {
+                        frame = [
+                            16,
+                            16
+                        ];
+                        hitbox = [
+                            new (0, _util.Vec)(2, 0),
+                            new (0, _util.Vec)(14, 16)
+                        ];
+                    } else game.ecs.removeEntity(wallEntity);
                 } else if (y === 0) {
-                    if (x === doors.top[0] - 1) frame = [
-                        48,
-                        32
-                    ];
-                    else if (x === doors.top[doors.top.length - 1] + 1) frame = [
-                        32,
-                        32
-                    ];
-                    else if (!doors.top.includes(x)) frame = [
-                        0,
-                        16
-                    ];
+                    if (x === room.doors.top[0] - 1) {
+                        frame = [
+                            48,
+                            32
+                        ];
+                        hitbox = [
+                            new (0, _util.Vec)(0, 0),
+                            new (0, _util.Vec)(14, 14)
+                        ];
+                    } else if (x === room.doors.top[room.doors.top.length - 1] + 1) {
+                        frame = [
+                            32,
+                            32
+                        ];
+                        hitbox = [
+                            new (0, _util.Vec)(2, 0),
+                            new (0, _util.Vec)(14, 14)
+                        ];
+                    } else if (!room.doors.top.includes(x)) {
+                        frame = [
+                            0,
+                            16
+                        ];
+                        hitbox = [
+                            new (0, _util.Vec)(0, 0),
+                            new (0, _util.Vec)(16, 14)
+                        ];
+                    } else game.ecs.removeEntity(wallEntity);
                 } else if (y === game.roomSize.y - 1) {
-                    if (x === doors.bottom[0] - 1) frame = [
-                        16,
-                        32
-                    ];
-                    else if (x === doors.bottom[doors.bottom.length - 1] + 1) frame = [
-                        0,
-                        32
-                    ];
-                    else if (!doors.bottom.includes(x)) frame = [
-                        32,
-                        16
-                    ];
+                    if (x === room.doors.bottom[0] - 1) {
+                        frame = [
+                            16,
+                            32
+                        ];
+                        hitbox = [
+                            new (0, _util.Vec)(0, 2),
+                            new (0, _util.Vec)(14, 14)
+                        ];
+                    } else if (x === room.doors.bottom[room.doors.bottom.length - 1] + 1) {
+                        frame = [
+                            0,
+                            32
+                        ];
+                        hitbox = [
+                            new (0, _util.Vec)(2, 2),
+                            new (0, _util.Vec)(14, 14)
+                        ];
+                    } else if (!room.doors.bottom.includes(x)) {
+                        frame = [
+                            32,
+                            16
+                        ];
+                        hitbox = [
+                            new (0, _util.Vec)(0, 2),
+                            new (0, _util.Vec)(16, 14)
+                        ];
+                    } else game.ecs.removeEntity(wallEntity);
                 }
                 game.ecs.addComponent(wallEntity, _components.ImageComponent, [
                     game.images["tiles"],
@@ -910,13 +1160,14 @@ const generateMap = (game)=>{
                     16,
                     16
                 ]);
+                game.ecs.addComponent(wallEntity, _components.HitboxComponent, hitbox.map((vec)=>vec.scaled(16, game.tileWidth)));
             }
         }
     }
     return rooms;
 };
 
-},{"../util":"9OSfS","./room":"lr0cD","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH","../components/components":"jPTTN"}],"9OSfS":[function(require,module,exports) {
+},{"../components":"hVzNr","../util":"9OSfS","./room":"lr0cD","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"9OSfS":[function(require,module,exports) {
 /* 
  * util.ts
  *
@@ -933,6 +1184,15 @@ class Vec {
     static equal(a, b) {
         return a.x === b.x && a.y === b.y;
     }
+    shifted(vec) {
+        return new Vec(this.x + vec.x, this.y + vec.y);
+    }
+    scaled(from, to) {
+        return new Vec(this.x / from * to, this.y / from * to);
+    }
+    clone() {
+        return new Vec(this.x, this.y);
+    }
 }
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"lr0cD":[function(require,module,exports) {
@@ -946,7 +1206,7 @@ class Vec {
  */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "Room", ()=>Room);
-var _components = require("../components/components");
+var _components = require("../components");
 var _util = require("../util");
 let // an enum to represent the possible floor tiles
 Tile;
@@ -972,6 +1232,8 @@ class Room {
     }
     // renders the room and its entities
     render() {
+        // clear the whole canvas
+        this.game.ctx.clearRect(0, 0, this.game.canvas.width, this.game.canvas.height);
         for(let y = 0; y < this.game.roomSize.y; y++)for(let x = 0; x < this.game.roomSize.x; x++){
             const tile = this.tiles[y][x]; // get the tile at the current position
             const tw = this.game.tileWidth; // shorthand for tile width
@@ -987,45 +1249,7 @@ class Room {
     }
 }
 
-},{"../components/components":"jPTTN","../util":"9OSfS","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"jPTTN":[function(require,module,exports) {
-// export all components from this file to make importing them easier
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "PositionComponent", ()=>(0, _position.PositionComponent));
-parcelHelpers.export(exports, "ImageComponent", ()=>(0, _image.ImageComponent));
-var _position = require("./position");
-var _image = require("./image");
-
-},{"./position":"kIFaG","./image":"ia3WO","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"kIFaG":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "PositionComponent", ()=>PositionComponent);
-var _ecs = require("../engine/ecs");
-class PositionComponent extends (0, _ecs.Component) {
-    constructor(position, room){
-        super();
-        this.position = position;
-        this.room = room;
-    }
-}
-
-},{"../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"ia3WO":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "ImageComponent", ()=>ImageComponent);
-var _ecs = require("../engine/ecs");
-class ImageComponent extends (0, _ecs.Component) {
-    constructor(image, sx, sy, sw, sh){
-        super();
-        this.image = image;
-        this.sx = sx;
-        this.sy = sy;
-        this.sw = sw;
-        this.sh = sh;
-    }
-}
-
-},{"../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"lpuAS":[function(require,module,exports) {
+},{"../components":"hVzNr","../util":"9OSfS","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"lpuAS":[function(require,module,exports) {
 /* 
  * systems/render.ts
  *
@@ -1036,20 +1260,92 @@ class ImageComponent extends (0, _ecs.Component) {
  */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "RenderSystem", ()=>RenderSystem);
-var _components = require("../components/components");
+var _components = require("../components");
 var _ecs = require("../engine/ecs");
 class RenderSystem extends (0, _ecs.System) {
     constructor(){
         super([
             _components.PositionComponent,
             _components.ImageComponent
-        ], (0, _ecs.SystemTrigger).Render, (game, entity)=>{
+        ], (0, _ecs.SystemTrigger).Tick, (game, entity)=>{
             const positionComponent = game.ecs.getComponent(entity, _components.PositionComponent);
             const imageComponent = game.ecs.getComponent(entity, _components.ImageComponent);
-            game.ctx.drawImage(imageComponent.image, imageComponent.sx, imageComponent.sy, imageComponent.sw, imageComponent.sh, positionComponent.position.x, positionComponent.position.y, game.tileWidth, game.tileWidth);
+            game.ctx.drawImage(imageComponent.image, imageComponent.sx, imageComponent.sy, imageComponent.sw, imageComponent.sh, positionComponent.pixels.x, positionComponent.pixels.y, game.tileWidth, game.tileWidth);
+            if (game.keys["h"] && game.ecs.hasComponent(entity, _components.HitboxComponent)) {
+                const hitboxComponent = game.ecs.getComponent(entity, _components.HitboxComponent);
+                game.ctx.strokeStyle = "#ff2222";
+                game.ctx.lineWidth = 1;
+                game.ctx.strokeRect(hitboxComponent.position.x + positionComponent.pixels.x, hitboxComponent.position.y + positionComponent.pixels.y, hitboxComponent.size.x, hitboxComponent.size.y);
+            }
         });
     }
 }
 
-},{"../components/components":"jPTTN","../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}]},["gkjlx","2G5F2"], "2G5F2", "parcelRequirec2fe")
+},{"../components":"hVzNr","../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"jMNjN":[function(require,module,exports) {
+/* 
+ * systems/controllable.ts
+ * 
+ * This is the system that animates walking characters using their spritesheet
+ * (stored in the image component), and actually moving walking entities by
+ * their speed, unless there's an entity with a hitbox in the way. This means
+ * that this sytem is also responsible for collision checking.
+ */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "WalkingSystem", ()=>WalkingSystem);
+var _components = require("../components");
+var _ecs = require("../engine/ecs");
+const checkForCollision = (game, entity)=>{
+    // get entities that aren't the entity which is moving
+    const entities = game.ecs.entitiesWithComponents(game.currentRoom, [
+        _components.HitboxComponent,
+        _components.PositionComponent
+    ]).filter((otherEntity)=>{
+        return otherEntity !== entity;
+    });
+    for (const otherEntity of entities){
+        // hitbox of the walking entity
+        const walkingHitbox = game.ecs.getComponent(entity, _components.HitboxComponent).getActualHitbox(game.ecs.getComponent(entity, _components.PositionComponent));
+        // hitbox of the other one
+        const otherHitbox = game.ecs.getComponent(otherEntity, _components.HitboxComponent).getActualHitbox(game.ecs.getComponent(otherEntity, _components.PositionComponent));
+        if (walkingHitbox.position.x <= otherHitbox.position.x + otherHitbox.size.x && walkingHitbox.position.x + walkingHitbox.size.x >= otherHitbox.position.x && walkingHitbox.position.y <= otherHitbox.position.y + otherHitbox.size.y && walkingHitbox.position.y + walkingHitbox.size.y >= otherHitbox.position.y) return true;
+    }
+};
+class WalkingSystem extends (0, _ecs.System) {
+    constructor(){
+        super([
+            _components.WalkingComponent,
+            _components.SpeedComponent,
+            _components.ImageComponent
+        ], (0, _ecs.SystemTrigger).Tick, (game, entity)=>{
+            const speed = game.ecs.getComponent(entity, _components.SpeedComponent);
+            const image = game.ecs.getComponent(entity, _components.ImageComponent);
+            const position = game.ecs.getComponent(entity, _components.PositionComponent);
+            // set the row of spritesheet for direction
+            if (speed.speedX === 0 && speed.speedY === 0) image.sy = 0; // top row of spritesheet
+            else {
+                if (speed.speedX < 0) image.sy = 32; // third row of spritesheet
+                else if (speed.speedX > 0) image.sy = 48; // last row of spritesheet
+                else if (speed.speedY < 0) image.sy = 16; // second row of spritesheet
+                else if (speed.speedY > 0) image.sy = 0; // top row of spritesheet
+            }
+            position.pixels.x += speed.speedX; // move by x speed
+            // move back if collided
+            if (checkForCollision(game, entity)) position.pixels.x -= speed.speedX;
+            // same thing with y speed
+            position.pixels.y += speed.speedY;
+            if (checkForCollision(game, entity)) position.pixels.y -= speed.speedY;
+            // if moving
+            if (speed.speedX !== 0 || speed.speedY !== 0) // change frame every 220ms
+            {
+                if (Date.now() - image.lastFrameChange > 220) {
+                    image.sx += 16; // move right one frame
+                    image.sx %= 64; // wrap around to the first frame if at the end
+                    image.lastFrameChange = Date.now();
+                }
+            } else image.sx = 0;
+        });
+    }
+}
+
+},{"../components":"hVzNr","../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}]},["55rT5","2G5F2"], "2G5F2", "parcelRequirec2fe")
 

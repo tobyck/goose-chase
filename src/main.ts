@@ -8,11 +8,14 @@
  * handles rendering of room.
  */
 
+import * as components from "./components";
+import { ControllableSystem } from "./systems/controllable";
 import { ECS, SystemTrigger } from "./engine/ecs";
 import { generateMap } from "./engine/mapgen";
 import { Room } from "./engine/room";
 import { RenderSystem } from "./systems/render";
 import { Vec } from "./util";
+import { WalkingSystem } from "./systems/walking";
 
 export default class Game {
     canvas: HTMLCanvasElement;
@@ -21,6 +24,9 @@ export default class Game {
     ecs = new ECS(this);
 
     images: { [key: string]: CanvasImageSource } = {};
+
+    // object to store which keys are currently pressed
+    keys: { [key: string]: boolean } = {};
 
     level: number;
 
@@ -35,6 +41,12 @@ export default class Game {
         this.ctx = canvas.getContext("2d");
 
         this.level = level;
+
+        // onkeydown set the key in the keys object to true
+        onkeydown = event => this.keys[event.key.toLowerCase()] = true;
+
+        // onkeyup set it to false
+        onkeyup = event => this.keys[event.key.toLowerCase()] = false;
 
         // level 1: 1x1
         // level 2: 2x1
@@ -75,7 +87,7 @@ export default class Game {
 
         // pre-load images
 
-        const files: string[] = ["tiles"]; // list of filenames without extension
+        const files: string[] = ["tiles", "player"]; // list of filenames without extension
         const promises: Promise<CanvasImageSource>[] = []; // list of promises, one for each image
 
         // create a promise for each image
@@ -97,29 +109,46 @@ export default class Game {
             // generate the rooms using the function in mapgen.ts
             this.rooms = generateMap(this);
 
+            // add the player
+
+            const player = this.ecs.createEntity();
+
+            this.ecs.addComponent(player, components.ImageComponent, [
+                this.images["player"],
+                0, 0, 16, 16
+            ]);
+
+            this.ecs.addComponent(player, components.PositionComponent, [new Vec(100, 100), this.room]);
+            this.ecs.addComponent(player, components.SpeedComponent, [this.tileWidth / 20]); // move 1/20 of a tile per frame
+            this.ecs.addComponent(player, components.WalkingComponent);
+            this.ecs.addComponent(player, components.ControllableComponent);
+            this.ecs.addComponent(player, components.HitboxComponent, [
+                new Vec(2, 0).scaled(16, this.tileWidth),
+                new Vec(12, 16).scaled(16, this.tileWidth)
+            ]);
+
             // add systems
+
+            this.ecs.systemManager.addSystem(new ControllableSystem());
+            this.ecs.systemManager.addSystem(new WalkingSystem());
             this.ecs.systemManager.addSystem(new RenderSystem());
 
             // start the game loop
-            this.gameLoop();
+            this.tick();
         });
     }
 
     // re-render the whole game every frame using requestAnimationFrame
 
-    gameLoop() {
-        // clear the whole canvas
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
+    tick() {
         // find the current room and render 
         this.currentRoom.render();
 
         // update all systems triggerd by rendering
-        this.ecs.systemManager.updateSystems(SystemTrigger.Render);
-
+        this.ecs.systemManager.updateSystems(SystemTrigger.Tick);
 
         // request the next frame
-        requestAnimationFrame(() => this.gameLoop());
+        requestAnimationFrame(() => this.tick());
     }
 
     // getter function to find the current room

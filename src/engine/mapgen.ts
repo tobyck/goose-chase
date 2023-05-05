@@ -1,10 +1,11 @@
 /* 
  * engine/mapgen.ts
  *
- * This file is responsible for generating the map.
+ * This file is responsible for generating the map (generating rooms 
+ * and adding entities to them).
  */
 
-import * as components from "../components/components";
+import * as components from "../components";
 import Game from "../main";
 import { Vec } from "../util";
 import { Room } from "./room";
@@ -35,23 +36,51 @@ export const generateMap = (game: Game): Room[] => {
     for (let roomY = 0; roomY < game.roomCount.y; roomY++) {
         for (let roomX = 0; roomX < game.roomCount.x; roomX++) {
             const roomPos = new Vec(roomX, roomY);
-
-            // add the room with only the floor tiles
-            rooms.push(new Room(game, roomPos));
+            const room = new Room(game, roomPos)
 
             // generate doors for each side of the room
-            const doors = {
+            room.doors = {
                 top: generateDoor(5, game.roomSize.x, 4),
                 bottom: generateDoor(5, game.roomSize.x, 4),
                 left: generateDoor(3, game.roomSize.y, 3),
                 right: generateDoor(3, game.roomSize.y, 3)
             }
 
-            // remove the door that would lead outside the map
-            if (roomX === 0) doors.left = [];
-            if (roomY === 0) doors.top = [];
-            if (roomX === game.roomCount.x - 1) doors.right = [];
-            if (roomY === game.roomCount.y - 1) doors.bottom = [];
+            // remove doors that would lead outside the map
+            if (roomX === 0) room.doors.left = []; // if the room is on the left edge of the map, remove the left door
+            if (roomY === 0) room.doors.top = []; // if the room is on the top edge, remove the top door
+            if (roomX === game.roomCount.x - 1) room.doors.right = []; // and so on...
+            if (roomY === game.roomCount.y - 1) room.doors.bottom = [];
+
+            // function to get the room at a given vector from the local rooms array
+            const roomAtVec = (vec: Vec) => rooms.find(room => Vec.equal(room.pos, vec));
+
+            // takes a door from another room if there it's there
+            const takeDoorFrom = (
+                from: Vec, // vector of the room to take a door from
+                to: Room,
+                door: "top" | "bottom" | "left" | "right" // which door to take
+            ): void => {
+                if (!roomAtVec(from)) return; // if there's no room there, return
+
+                to.doors[door] = roomAtVec(from).doors[
+                    // get the opposite door
+                    {
+                        top: "bottom",
+                        bottom: "top",
+                        left: "right",
+                        right: "left"
+                    }[door]
+                ];
+            }
+
+            // remove doors if there's a room on the other side
+            takeDoorFrom(roomPos.shifted(new Vec(0, -1)), room, "top");
+            takeDoorFrom(roomPos.shifted(new Vec(0, 1)), room, "bottom");
+            takeDoorFrom(roomPos.shifted(new Vec(-1, 0)), room, "left");
+            takeDoorFrom(roomPos.shifted(new Vec(1, 0)), room, "right");
+
+            rooms.push(room);
 
             // for each tile position in the room
             for (let y = 0; y < game.roomSize.y; y++) {
@@ -75,6 +104,9 @@ export const generateMap = (game: Game): Room[] => {
                         // 2nd and third args for ImageComponent (see componentns/image.ts)
                         let frame: [number, number];
 
+                        // args for HitboxComponent (x, y, width, height)
+                        let hitbox: [Vec, Vec] = [new Vec(0, 0), new Vec(16, 16)]; // pixels on the spritesheet
+
                         /*
                          * The following if/else statements select the correct frame 
                          * in the spritesheet for the wall based on it's position.
@@ -83,44 +115,65 @@ export const generateMap = (game: Game): Room[] => {
                          */
 
                         if (x === 0) {
-                            if (y === 0) {
+                            if (y === 0) { // top left corner
                                 frame = [0, 3 * 16];
-                            } else if (y === game.roomSize.y - 1) {
+                            } else if (y === game.roomSize.y - 1) { // bottom left corner
                                 frame = [2 * 16, 3 * 16];
-                            } else if (y === doors.left[0] - 1) {
+                            } else if (y === room.doors.left[0] - 1) { // top of the left door
                                 frame = [3 * 16, 2 * 16];
-                            } else if (y === doors.left[doors.left.length - 1] + 1) {
+                                hitbox = [new Vec(0, 0), new Vec(14, 14)];
+                            } else if (y === room.doors.left[room.doors.left.length - 1] + 1) { // bottom of the left door
                                 frame = [16, 2 * 16];
-                            } else if (!doors.left.includes(y)) {
+                                hitbox = [new Vec(0, 2), new Vec(14, 14)];
+                            } else if (!room.doors.left.includes(y)) { // straight part left wall
                                 frame = [3 * 16, 16];
+                                hitbox = [new Vec(0, 0), new Vec(14, 16)];
+                            } else {
+                                // don't add a wall if there's a door
+                                game.ecs.removeEntity(wallEntity);
                             }
                         } else if (x === game.roomSize.x - 1) {
-                            if (y === 0) {
+                            if (y === 0) { // top right corner
                                 frame = [16, 3 * 16];
-                            } else if (y === game.roomSize.y - 1) {
+                            } else if (y === game.roomSize.y - 1) { // bottom right corner
                                 frame = [3 * 16, 3 * 16];
-                            } else if (y === doors.right[0] - 1) {
+                            } else if (y === room.doors.right[0] - 1) { // top of the right door
                                 frame = [2 * 16, 2 * 16];
-                            } else if (y === doors.right[doors.right.length - 1] + 1) {
+                                hitbox = [new Vec(2, 0), new Vec(14, 14)];
+                            } else if (y === room.doors.right[room.doors.right.length - 1] + 1) { // bottom of the right door
                                 frame = [0, 2 * 16];
-                            } else if (!doors.right.includes(y)) {
+                                hitbox = [new Vec(2, 2), new Vec(14, 14)];
+                            } else if (!room.doors.right.includes(y)) { // straight part right wall
                                 frame = [16, 16];
+                                hitbox = [new Vec(2, 0), new Vec(14, 16)];
+                            } else {
+                                game.ecs.removeEntity(wallEntity);
                             }
                         } else if (y === 0) {
-                            if (x === doors.top[0] - 1) {
+                            if (x === room.doors.top[0] - 1) { // left side of the top door
                                 frame = [3 * 16, 2 * 16];
-                            } else if (x === doors.top[doors.top.length - 1] + 1) {
+                                hitbox = [new Vec(0, 0), new Vec(14, 14)];
+                            } else if (x === room.doors.top[room.doors.top.length - 1] + 1) { // right side of the top door
                                 frame = [2 * 16, 2 * 16];
-                            } else if (!doors.top.includes(x)) {
+                                hitbox = [new Vec(2, 0), new Vec(14, 14)];
+                            } else if (!room.doors.top.includes(x)) { // straight part top wall
                                 frame = [0, 16];
+                                hitbox = [new Vec(0, 0), new Vec(16, 14)];
+                            } else {
+                                game.ecs.removeEntity(wallEntity);
                             }
                         } else if (y === game.roomSize.y - 1) {
-                            if (x === doors.bottom[0] - 1) {
+                            if (x === room.doors.bottom[0] - 1) { // left side of the bottom door
                                 frame = [16, 2 * 16];
-                            } else if (x === doors.bottom[doors.bottom.length - 1] + 1) {
+                                hitbox = [new Vec(0, 2), new Vec(14, 14)];
+                            } else if (x === room.doors.bottom[room.doors.bottom.length - 1] + 1) { // right side of the bottom door
                                 frame = [0, 2 * 16];
-                            } else if (!doors.bottom.includes(x)) {
+                                hitbox = [new Vec(2, 2), new Vec(14, 14)];
+                            } else if (!room.doors.bottom.includes(x)) { // straight part bottom wall
                                 frame = [2 * 16, 16];
+                                hitbox = [new Vec(0, 2), new Vec(16, 14)];
+                            } else {
+                                game.ecs.removeEntity(wallEntity);
                             }
                         }
 
@@ -128,6 +181,12 @@ export const generateMap = (game: Game): Room[] => {
                             wallEntity,
                             components.ImageComponent,
                             [game.images["tiles"], ...(frame ?? [0, 0]), 16, 16]
+                        );
+
+                        game.ecs.addComponent(
+                            wallEntity,
+                            components.HitboxComponent,
+                            hitbox.map(vec => vec.scaled(16, game.tileWidth)) as [Vec, Vec]
                         );
                     }
                 }

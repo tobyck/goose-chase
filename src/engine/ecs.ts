@@ -10,8 +10,9 @@
  */
 
 import Game from "../main";
+import { Room } from "./room";
 
-type Entity = number;
+export type Entity = number;
 
 // an abstract class for components to extend from for type safety
 
@@ -39,7 +40,7 @@ class ComponentManager<T extends Component> {
 // (list can be expanded as more systems are added)
 
 export enum SystemTrigger {
-    Render
+    Tick
 }
 
 // system class
@@ -88,20 +89,13 @@ export class SystemManager {
 
         // for each system with the specified trigger
         for (const system of systems) {
-            for (const entity of entities) { // for each entity in the room
-                // assume the entity has all required components until proven otherwise
-                let hasRequiredComponents = true;
-
-                for (const requiredComponent of system.requiredComponents) {
-                    // if the entity doesn't have a required component, it shouldn't be updated
-                    if (!this.game.ecs.hasComponent(entity, requiredComponent)) {
-                        hasRequiredComponents = false;
-                        break;
-                    }
-                }
-
-                // update the entity if it has all required components
-                if (hasRequiredComponents) system.update(this.game, entity);
+            for (
+                const entity of this.game.ecs.entitiesWithComponents(
+                    this.game.currentRoom,
+                    system.requiredComponents
+                )
+            ) {
+                system.update(this.game, entity);
             }
         }
     }
@@ -118,23 +112,39 @@ export class ECS {
         this.systemManager = new SystemManager(game);
     }
 
+    // add an entity with a unique ID
     createEntity(): Entity {
-        this.entities.push(this.entities.length);
-        return this.entities.length - 1;
+        let entityId = this.entities.length;
+
+        // find the next available entity ID if the current one is taken
+        while (this.entities.includes(entityId)) {
+            entityId++;
+        }
+
+        // add the entity to the list of entities
+        this.entities.push(entityId);
+
+        return entityId;
     }
 
+    // remove an entity and all of its components
     removeEntity(entity: Entity): void {
         this.entities.splice(this.entities.indexOf(entity), 1);
+        for (const componentManager of this.componentManagers.values()) {
+            if (componentManager.components[entity]) {
+                componentManager.removeComponent(entity);
+            }
+        }
     }
 
     hasComponent(entity: Entity, component: Component): boolean {
         return this.componentManagers.get(component)?.getComponent(entity) !== undefined;
     }
 
-    addComponent(
+    addComponent<T extends new (...args: any[]) => Component>(
         entity: Entity,
-        component: new (...args: any[]) => Component,
-        args: any[]
+        component: T,
+        args = <ConstructorParameters<T>>[]
     ): void {
         if (!this.componentManagers.has(component)) {
             this.componentManagers.set(component, new ComponentManager());
@@ -151,5 +161,26 @@ export class ECS {
         return this.componentManagers
             .get(component)
             .getComponent(entity);
+    }
+
+    entitiesWithComponents(room: Room, components: Component[]): Entity[] {
+        const entities: Entity[] = [];
+
+        for (const entity of room.entities) {
+            // assume the entity has all required components until proven otherwise
+            let hasComponents = true;
+
+            for (const component of components) { // for each component
+                // if the entity doesn't have a required component it shouldn't be added to the list
+                if (!this.hasComponent(entity, component)) {
+                    hasComponents = false;
+                    break;
+                }
+            }
+
+            if (hasComponents) entities.push(entity);
+        }
+
+        return entities;
     }
 }

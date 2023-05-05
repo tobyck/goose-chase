@@ -7,7 +7,7 @@
  * has walls, they can be collided so they're implemented as entities.
  */
 
-import * as components from "../components/components";
+import * as components from "../components";
 import Game from "../main";
 import { Vec } from "../util";
 
@@ -24,6 +24,12 @@ export class Room {
     game: Game; // reference to the game object that this room is a part of
     pos: Vec;
     tiles: Tile[][] = [];
+    doors: {
+        top: number[],
+        bottom: number[],
+        left: number[],
+        right: number[]
+    }
 
     constructor(game: Game, pos: Vec) {
         this.game = game;
@@ -48,6 +54,9 @@ export class Room {
     // renders the room and its entities
 
     render() {
+        // clear the whole canvas
+        this.game.ctx.clearRect(0, 0, this.game.canvas.width, this.game.canvas.height);
+
         for (let y = 0; y < this.game.roomSize.y; y++) { // for each row
             for (let x = 0; x < this.game.roomSize.x; x++) { // for each column
                 const tile: Tile = this.tiles[y][x]; // get the tile at the current position

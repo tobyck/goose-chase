@@ -7,7 +7,7 @@
  * part of the image is specified in the component at the time of rendering.
  */
 
-import * as components from "../components/components";
+import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
 
 export class RenderSystem extends System {
@@ -17,7 +17,7 @@ export class RenderSystem extends System {
                 components.PositionComponent,
                 components.ImageComponent,
             ],
-            SystemTrigger.Render, // run every frame
+            SystemTrigger.Tick, // run every frame
             (game, entity) => {
                 const positionComponent = game.ecs
                     .getComponent(entity, components.PositionComponent);
@@ -31,11 +31,24 @@ export class RenderSystem extends System {
                     imageComponent.sy,
                     imageComponent.sw,
                     imageComponent.sh,
-                    positionComponent.position.x,
-                    positionComponent.position.y,
+                    positionComponent.pixels.x,
+                    positionComponent.pixels.y,
                     game.tileWidth,
                     game.tileWidth
                 );
+
+                if (game.keys["h"] && game.ecs.hasComponent(entity, components.HitboxComponent)) {
+                    const hitboxComponent = game.ecs.getComponent(entity, components.HitboxComponent);
+
+                    game.ctx.strokeStyle = "#ff2222";
+                    game.ctx.lineWidth = 1;
+                    game.ctx.strokeRect(
+                        hitboxComponent.position.x + positionComponent.pixels.x,
+                        hitboxComponent.position.y + positionComponent.pixels.y,
+                        hitboxComponent.size.x,
+                        hitboxComponent.size.y
+                    );
+                }
             }
         );
     }

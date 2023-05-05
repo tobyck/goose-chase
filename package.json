@@ -14,7 +14,8 @@
   },
   "scripts": {
     "watch": "parcel watch",
-    "build": "parcel build --no-cache"
+    "build": "parcel build --no-cache",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "parcel": "latest"
