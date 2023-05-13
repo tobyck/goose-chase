@@ -17,10 +17,9 @@ export class ControllableSystem extends System {
             components.ControllableComponent,
             components.SpeedComponent,
             components.PositionComponent
-        ], SystemTrigger.Tick, (game, entity) => {
+        ], SystemTrigger.Keyboard, (game, entity) => {
             // get components
             const speed = game.ecs.getComponent(entity, components.SpeedComponent);
-            const position = game.ecs.getComponent(entity, components.PositionComponent);
 
             if (game.keys["a"] || game.keys["arrowleft"]) {
                 if (game.keys["w"] || game.keys["arrowup"]) {
@@ -47,20 +46,23 @@ export class ControllableSystem extends System {
                 speed.speedY = 0;
             }
 
-            // make the controllable entities go to the other side of the next room when they go through a door
-            if (position.pixels.x < -(game.tileWidth / 2) && position.room.x > 0) {
-                position.room.x--;
-                position.pixels.x = game.tileWidth * game.roomSize.x - (game.tileWidth / 2);
-            } else if (position.pixels.x > game.tileWidth * game.roomSize.x - (game.tileWidth / 2) && position.room.x < game.roomSize.x - 1) {
-                position.room.x++;
-                position.pixels.x = -(game.tileWidth / 2);
-            } else if (position.pixels.y < -(game.tileWidth / 2) && position.room.y > 0) {
-                position.room.y--;
-                position.pixels.y = game.tileWidth * game.roomSize.y - (game.tileWidth / 2);
-            } else if (position.pixels.y > game.tileWidth * game.roomSize.y - (game.tileWidth / 2) && position.room.y < game.roomSize.y - 1) {
-                position.room.y++;
-                position.pixels.y = -(game.tileWidth / 2);
+            // use shift key to sneak
+
+            // at the moment this does nothing, but once enemies are 
+            // added it will make it harder for them to find you
+
+            if (game.keys["shift"]) {
+                // halve the speed
+                speed.speedX /= 2;
+                speed.speedY /= 2;
+
+                // let the ControllableComponent know that the entity is sneaking
+                const ControllableComponent = game.ecs.getComponent(entity, components.ControllableComponent);
+                ControllableComponent.sneaking = true;
             }
+
+            // get position component
+            const position = game.ecs.getComponent(entity, components.PositionComponent);
         });
     }
 }

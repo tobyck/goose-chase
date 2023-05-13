@@ -8,90 +8,87 @@
  */
 
 import * as components from "../components";
-import { type Entity, System, SystemTrigger } from "../engine/ecs";
-import type Game from "../main";
-
-const checkForCollision = (game: Game, entity: Entity) => {
-    // get entities that aren't the entity which is moving
-    const entities = game.ecs.entitiesWithComponents(
-        game.currentRoom,
-        [components.HitboxComponent, components.PositionComponent]
-    ).filter(otherEntity => {
-        return otherEntity !== entity;
-    });
-
-    for (const otherEntity of entities) {
-        // hitbox of the walking entity
-        const walkingHitbox = game.ecs
-            .getComponent(entity, components.HitboxComponent)
-            .getActualHitbox(game.ecs.getComponent(entity, components.PositionComponent));
-
-        // hitbox of the other one
-        const otherHitbox = game.ecs
-            .getComponent(otherEntity, components.HitboxComponent)
-            .getActualHitbox(game.ecs.getComponent(otherEntity, components.PositionComponent));
-
-        if ( // if the two collide
-            walkingHitbox.position.x <= otherHitbox.position.x + otherHitbox.size.x &&
-            walkingHitbox.position.x + walkingHitbox.size.x >= otherHitbox.position.x &&
-            walkingHitbox.position.y <= otherHitbox.position.y + otherHitbox.size.y &&
-            walkingHitbox.position.y + walkingHitbox.size.y >= otherHitbox.position.y
-        ) return true;
-    }
-}
+import { System, SystemTrigger } from "../engine/ecs";
+import { anyHitboxesCollide } from "../helpers";
 
 export class WalkingSystem extends System {
     constructor() {
-        super(
-            [
-                components.WalkingComponent,
-                components.SpeedComponent,
-                components.ImageComponent
-            ],
-            SystemTrigger.Tick,
-            (game, entity) => {
-                const speed = game.ecs.getComponent(entity, components.SpeedComponent);
-                const image = game.ecs.getComponent(entity, components.ImageComponent);
-                const position = game.ecs.getComponent(entity, components.PositionComponent);
+        super([
+            components.WalkingComponent,
+            components.SpeedComponent,
+            components.ImageComponent
+        ], SystemTrigger.Tick, (game, entity) => {
+            const speed = game.ecs.getComponent(entity, components.SpeedComponent);
+            const image = game.ecs.getComponent(entity, components.ImageComponent);
+            const position = game.ecs.getComponent(entity, components.PositionComponent);
 
-                // set the row of spritesheet for direction
-                if (speed.speedX === 0 && speed.speedY === 0) { // if not moving
-                    image.sy = 0; // top row of spritesheet
-                } else {
-                    if (speed.speedX < 0) { // if moving left
-                        image.sy = 2 * 16; // third row of spritesheet
-                    } else if (speed.speedX > 0) { // if moving right
-                        image.sy = 3 * 16; // last row of spritesheet
-                    } else if (speed.speedY < 0) { // if moving up
-                        image.sy = 16; // second row of spritesheet
-                    } else if (speed.speedY > 0) { // if moving down
-                        image.sy = 0; // top row of spritesheet
-                    }
+            // set the row of spritesheet for direction
+            if (speed.speedX === 0 && speed.speedY === 0) { // if not moving
+                image.frame.y = 0; // top row of spritesheet
+            } else {
+                if (speed.speedX < 0) { // if moving left
+                    image.frame.y = 2 * 16; // third row of spritesheet
+                } else if (speed.speedX > 0) { // if moving right
+                    image.frame.y = 3 * 16; // last row of spritesheet
+                } else if (speed.speedY < 0) { // if moving up
+                    image.frame.y = 16; // second row of spritesheet
+                } else if (speed.speedY > 0) { // if moving down
+                    image.frame.y = 0; // top row of spritesheet
                 }
+            }
 
-                position.pixels.x += speed.speedX; // move by x speed
-                // move back if collided
-                if (checkForCollision(game, entity)) {
-                    position.pixels.x -= speed.speedX;
-                }
+            position.pixels.x += speed.speedX; // move by x speed
+            // if there's a collision, move back
+            if (anyHitboxesCollide(game, entity)) {
+                position.pixels.x -= speed.speedX;
+            }
 
-                // same thing with y speed
-                position.pixels.y += speed.speedY;
-                if (checkForCollision(game, entity)) {
-                    position.pixels.y -= speed.speedY;
-                }
+            // same thing with y speed
+            position.pixels.y += speed.speedY;
+            if (anyHitboxesCollide(game, entity)) {
+                position.pixels.y -= speed.speedY;
+            }
 
-                // if moving
-                if (speed.speedX !== 0 || speed.speedY !== 0) {
-                    // change frame every 220ms
-                    if (Date.now() - image.lastFrameChange > 220) {
-                        image.sx += 16; // move right one frame
-                        image.sx %= 64; // wrap around to the first frame if at the end
-                        image.lastFrameChange = Date.now();
-                    }
-                } else {
-                    image.sx = 0;
+            // if moving
+            if (speed.speedX !== 0 || speed.speedY !== 0) {
+                // change frame every x milliseconds depending on speed (350 is arbitrary)
+                const timeBetweenFrames = 1 / speed.currentVelocity * 350;
+                if (Date.now() - image.lastFrameChange >= timeBetweenFrames) {
+                    image.frame.x += 16; // move right one frame
+                    image.frame.x %= 64; // wrap around to the first frame if at the end
+                    image.lastFrameChange = Date.now();
                 }
-            });
+            } else {
+                image.frame.x = 0;
+            }
+
+            // if the entity has health
+            if (game.ecs.hasComponent(entity, components.HealthComponent)) {
+                const health = game.ecs.getComponent(entity, components.HealthComponent);
+
+                // remove health based on speed (1/150th of the velocity per tick)
+                health.damage(speed.currentVelocity / 150);
+
+                // heal if resting (1/2000th of the max health per tick)
+                if (speed.currentVelocity === 0) {
+                    health.heal(health.maxHealth / 2000);
+                }
+            }
+
+            // move to neighboring room if walking through door
+            if (position.pixels.x < -(game.tileSize / 2) && position.room.x > 0) {
+                position.room.x--;
+                position.pixels.x = game.tileSize * game.roomSize.x - (game.tileSize / 2);
+            } else if (position.pixels.x > game.tileSize * game.roomSize.x - (game.tileSize / 2) && position.room.x < game.roomSize.x - 1) {
+                position.room.x++;
+                position.pixels.x = -(game.tileSize / 2);
+            } else if (position.pixels.y < -(game.tileSize / 2) && position.room.y > 0) {
+                position.room.y--;
+                position.pixels.y = game.tileSize * game.roomSize.y - (game.tileSize / 2);
+            } else if (position.pixels.y > game.tileSize * game.roomSize.y - (game.tileSize / 2) && position.room.y < game.roomSize.y - 1) {
+                position.room.y++;
+                position.pixels.y = -(game.tileSize / 2);
+            }
+        });
     }
 }

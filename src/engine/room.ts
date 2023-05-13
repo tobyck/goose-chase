@@ -8,8 +8,8 @@
  */
 
 import * as components from "../components";
-import Game from "../main";
-import { Vec } from "../util";
+import type Game from "../main";
+import { Vec } from "../helpers";
 
 // an enum to represent the possible floor tiles
 
@@ -38,15 +38,24 @@ export class Room {
         for (let y = 0; y < this.game.roomSize.y; y++) { // for each row
             this.tiles.push([]); // push an empty tile array
             for (let x = 0; x < this.game.roomSize.x; x++) { // for each column
-                const tile = Math.random() < .8 // 80% chance of short grass
-                    ? Tile.ShortGrass
-                    : Math.random() < .7
-                        ? Tile.TallGrass
-                        : Math.random() < .5
-                            ? Tile.Flowers1
-                            : Tile.Flowers2;
+                if ( // if on the edge
+                    x == 0 ||
+                    y == 0 ||
+                    x == this.game.roomSize.x - 1 ||
+                    y == this.game.roomSize.y - 1
+                ) this.tiles[y].push(Tile.ShortGrass); // make it short grass
 
-                this.tiles[y].push(tile);
+                else {
+                    const tile = Math.random() < .8 // 80% chance of short grass
+                        ? Tile.ShortGrass
+                        : Math.random() < .7
+                            ? Tile.TallGrass
+                            : Math.random() < .5
+                                ? Tile.Flowers1
+                                : Tile.Flowers2;
+
+                    this.tiles[y].push(tile);
+                }
             }
         }
     }
@@ -60,7 +69,7 @@ export class Room {
         for (let y = 0; y < this.game.roomSize.y; y++) { // for each row
             for (let x = 0; x < this.game.roomSize.x; x++) { // for each column
                 const tile: Tile = this.tiles[y][x]; // get the tile at the current position
-                const tw = this.game.tileWidth; // shorthand for tile width
+                const tw = this.game.tileSize; // shorthand for tile width
 
                 this.game.ctx.drawImage(
                     this.game.images["tiles"], // image
@@ -82,12 +91,14 @@ export class Room {
     }
 
     // getter function to get the entities which are in this room
-    // (exists only to get around a circular dependency)
 
     get entities() {
-        return this.game.ecs.entities.filter(entity => Vec.equal(
-            this.game.ecs.getComponent(entity, components.PositionComponent).room,
-            this.pos
-        ));
+        return this.game.ecs.entities.filter(entity => {
+            if (!this.game.ecs.hasComponent(entity, components.PositionComponent)) return false;
+            return Vec.equal(
+                this.game.ecs.getComponent(entity, components.PositionComponent).room,
+                this.pos
+            )
+        });
     }
 }

@@ -9,8 +9,8 @@
  * things are wrapped in the ECS class which is used by the game object.
  */
 
-import Game from "../main";
-import { Room } from "./room";
+import type Game from "../main";
+import type { Room } from "./room";
 
 export type Entity = number;
 
@@ -40,23 +40,32 @@ class ComponentManager<T extends Component> {
 // (list can be expanded as more systems are added)
 
 export enum SystemTrigger {
-    Tick
+    Tick,
+    Keyboard, // keydown and keyup
+    KeyUp, // keyup only
+    Click,
+    RightClick
 }
 
-// system class
+/* 
+ * The System Class
+ *
+ * When a system is triggered it will use the update method to update all
+ * entities with the required components. The update method must overlap with
+ * the SystemFunc type, which it defaults to.
+ */
 
-// when a system is triggered it will use the update method to update 
-// all entities with the required components
+type SystemFunc = (game: Game, enity: Entity) => void;
 
-export class System {
+export abstract class System {
     requiredComponents: Component[] = [];
     trigger: SystemTrigger;
-    update: (game: Game, entity: Entity) => void;
+    update: SystemFunc;
 
     constructor(
         requiredComponents: Component[],
         trigger: SystemTrigger,
-        update: (game: Game, entity: Entity) => void
+        update: SystemFunc
     ) {
         this.requiredComponents = requiredComponents;
         this.trigger = trigger;
@@ -137,6 +146,12 @@ export class ECS {
         }
     }
 
+    // brings an entity to the end of the list of entities so it's rendered on top
+    bringToFront(entity: Entity): void {
+        this.entities.splice(this.entities.indexOf(entity), 1);
+        this.entities.push(entity);
+    }
+
     hasComponent(entity: Entity, component: Component): boolean {
         return this.componentManagers.get(component)?.getComponent(entity) !== undefined;
     }
@@ -146,8 +161,9 @@ export class ECS {
         component: T,
         args = <ConstructorParameters<T>>[]
     ): void {
+        // if there isn't already a component manager for the component, create one
         if (!this.componentManagers.has(component)) {
-            this.componentManagers.set(component, new ComponentManager());
+            this.componentManagers.set(component, new ComponentManager<T>());
         }
         this.componentManagers
             .get(component)

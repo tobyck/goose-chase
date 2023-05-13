@@ -1,13 +1,14 @@
 /* 
  * engine/mapgen.ts
  *
- * This file is responsible for generating the map (generating rooms 
- * and adding entities to them).
+ * This file is responsible for generating the map (a flat array of rooms),
+ * adding wall entities, and leaving gaps for doors into adjacent rooms
+ * which also line up with the doors in the adjacent rooms.
  */
 
 import * as components from "../components";
-import Game from "../main";
-import { Vec } from "../util";
+import type Game from "../main";
+import { randInt, Rect, Vec } from "../helpers";
 import { Room } from "./room";
 
 /* 
@@ -19,10 +20,10 @@ import { Room } from "./room";
 
 const generateDoor = (minDistFromSide: number, sideWidth: number, doorWidth: number): number[] => {
     // first tile of the door
-    const start = Math.floor(Math.random() * (sideWidth - (minDistFromSide * 2) - (doorWidth - 1))) + minDistFromSide;
+    const start = randInt(minDistFromSide, sideWidth - minDistFromSide - doorWidth);
 
     // return the range [start, start + doorWidth]
-    return Array.from({ length: doorWidth }, (_, i) => start + i);
+    return Array(doorWidth).fill(null).map((_, i) => start + i);
 }
 
 /* 
@@ -36,7 +37,7 @@ export const generateMap = (game: Game): Room[] => {
     for (let roomY = 0; roomY < game.roomCount.y; roomY++) {
         for (let roomX = 0; roomX < game.roomCount.x; roomX++) {
             const roomPos = new Vec(roomX, roomY);
-            const room = new Room(game, roomPos)
+            const room = new Room(game, roomPos);
 
             // generate doors for each side of the room
             room.doors = {
@@ -98,7 +99,7 @@ export const generateMap = (game: Game): Room[] => {
                         game.ecs.addComponent(
                             wallEntity,
                             components.PositionComponent,
-                            [new Vec(x * game.tileWidth, y * game.tileWidth), roomPos]
+                            [new Vec(x * game.tileSize, y * game.tileSize), roomPos]
                         );
 
                         // 2nd and third args for ImageComponent (see componentns/image.ts)
@@ -180,16 +181,64 @@ export const generateMap = (game: Game): Room[] => {
                         game.ecs.addComponent(
                             wallEntity,
                             components.ImageComponent,
-                            [game.images["tiles"], ...(frame ?? [0, 0]), 16, 16]
+                            [game.images["tiles"], new Rect(...(frame ?? [0, 0]), 16, 16)]
                         );
 
                         game.ecs.addComponent(
                             wallEntity,
                             components.HitboxComponent,
-                            hitbox.map(vec => vec.scaled(16, game.tileWidth)) as [Vec, Vec]
+                            [Rect.fromVecs(...hitbox.map(
+                                vec => vec.scaled(16, game.tileSize)
+                            ) as [Vec, Vec])]
                         );
                     }
                 }
+            }
+
+            // 3-5 logs in each room
+
+            for (let i = 0; i < randInt(5, 10); i++) {
+                const log = game.ecs.createEntity();
+
+                let pos: Vec;
+
+                do {
+                    pos = new Vec(
+                        (randInt(2, game.roomSize.x - 3) + Math.random() - .5) * game.tileSize,
+                        (randInt(2, game.roomSize.y - 3) + Math.random() - .5) * game.tileSize
+                    );
+                } while (room.entities.some(entity => {
+                    if (!game.ecs.hasComponent(entity, components.HitboxComponent))
+                        return false;
+
+                    const position = game.ecs.getComponent(entity, components.PositionComponent);
+
+                    const hitbox = game.ecs.getComponent(entity, components.HitboxComponent)
+                        .getActualHitbox(position);
+
+                    return hitbox.overlaps(new components.HitboxComponent(new Rect(
+                        pos.x, pos.y, game.tileSize, game.tileSize
+                    )));
+                }));
+
+                game.ecs.addComponent(log, components.PositionComponent, [pos, roomPos]);
+
+                // top left sprite in the items spritesheet
+                game.ecs.addComponent(
+                    log,
+                    components.ImageComponent,
+                    [game.images["items"], new Rect(0, 0, 16, 16)]
+                );
+
+                // hitbox the size of a tile
+                game.ecs.addComponent(
+                    log,
+                    components.HitboxComponent,
+                    [new Rect(1, 1, game.tileSize - 2, game.tileSize - 2)]
+                );
+
+                // allow the entity to be picked up
+                game.ecs.addComponent(log, components.HoldableComponent);
             }
         }
     }
