@@ -153,6 +153,29 @@ export class HealthComponent implements Component {
     }
 }
 
+export class WeaponComponent extends Component {
+    damage: number; // how much health the weapon takes off
+
+    // properties for the weapon animation
+    // these are set when the weapon is swung
+
+    holder: Entity; // entity holding the weapon
+
+    totalFrames: number; // how many ticks the weapon animation takes
+    frameCount: number; // how many ticks until the weapon animation is over
+
+    startAngle: number; // angle the weapon starts at (in radians)
+    swingRadians: number; // how many radians the weapon swings through
+
+    // this vector will be added to the vector holder's centre to get the pivot point
+    pivotPointOffset: Vec;
+
+    constructor(damage: number) {
+        super();
+        this.damage = damage;
+    }
+}
+
 // entity can be controlled by the user
 export class ControllableComponent implements Component {
     sneaking = false;

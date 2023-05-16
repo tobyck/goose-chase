@@ -6,7 +6,7 @@
 
 import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
-import { attemptPlace } from "../helpers";
+import { attemptPlace, Vec } from "../helpers";
 
 export class PlaceSystem extends System {
     constructor() {
@@ -27,7 +27,10 @@ export class PlaceSystem extends System {
             const hands = game.ecs.getComponent(entity, components.HandsComponent);
 
             if (!hands.allEmpty()) {
-                attemptPlace(game, hands, game.lastClickPos.centred(game.tileSize));
+                attemptPlace(game, hands, game.lastClickPos.shifted(new Vec(
+                    -game.tileSize / 2,
+                    -game.tileSize / 2
+                )));
             }
         });
     }

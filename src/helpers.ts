@@ -26,15 +26,23 @@ export class Vec {
         return new Vec(this.x + vec.x, this.y + vec.y);
     }
 
+    // scale a vector from one range to another
     scaled(from: number, to: number): Vec {
         return new Vec(this.x / from * to, this.y / from * to);
     }
 
+    // returns the vector of the center given the width of a tile
     centred(tileSize: number): Vec {
         return new Vec(
-            this.x - tileSize / 2,
-            this.y - tileSize / 2
+            this.x + tileSize / 2,
+            this.y + tileSize / 2
         );
+    }
+
+    // checks if a vector is inside a rectangle
+    isInside(rect: Rect) {
+        return this.x >= rect.x && this.x <= rect.x + rect.width &&
+            this.y >= rect.y && this.y <= rect.y + rect.height;
     }
 
     clone(): Vec {
@@ -138,6 +146,8 @@ export const attemptPlace = (game: Game, hands: HandsComponent, pos: Vec): boole
          * in the room it was just placed in (until picked up again).
          */
         itemPosition.room = itemPosition.room.clone();
+        game.ecs.bringToFront(item);
+        game.ecs.bringToFront(game.player);
         return true;
     }
 }

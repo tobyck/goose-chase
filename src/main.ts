@@ -20,6 +20,8 @@ import { HitSystem } from "./systems/hit";
 import { PlaceSystem } from "./systems/place";
 import { KeyUpSystem } from "./systems/keyup";
 import { HealthBarSystem } from "./systems/healthbar";
+import { addItems } from "./engine/itemgen";
+import { WeaponSystem } from "./systems/weapon";
 
 export default class Game {
     canvas: HTMLCanvasElement;
@@ -174,6 +176,10 @@ export default class Game {
 
             this.rooms = generateMap(this);
 
+            // add items to the rooms
+
+            addItems(this);
+
             // bring the player to the front so they are drawn on top of everything else
             // (this is so that items without hitboxes will be drawn behind the player)
 
@@ -188,6 +194,7 @@ export default class Game {
             this.ecs.systemManager.addSystem(new KeyUpSystem());
             this.ecs.systemManager.addSystem(new RenderSystem());
             this.ecs.systemManager.addSystem(new HealthBarSystem());
+            this.ecs.systemManager.addSystem(new WeaponSystem());
 
             // start the game loop
             this.tick();

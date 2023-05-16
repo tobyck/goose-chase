@@ -194,52 +194,6 @@ export const generateMap = (game: Game): Room[] => {
                     }
                 }
             }
-
-            // 3-5 logs in each room
-
-            for (let i = 0; i < randInt(5, 10); i++) {
-                const log = game.ecs.createEntity();
-
-                let pos: Vec;
-
-                do {
-                    pos = new Vec(
-                        (randInt(2, game.roomSize.x - 3) + Math.random() - .5) * game.tileSize,
-                        (randInt(2, game.roomSize.y - 3) + Math.random() - .5) * game.tileSize
-                    );
-                } while (room.entities.some(entity => {
-                    if (!game.ecs.hasComponent(entity, components.HitboxComponent))
-                        return false;
-
-                    const position = game.ecs.getComponent(entity, components.PositionComponent);
-
-                    const hitbox = game.ecs.getComponent(entity, components.HitboxComponent)
-                        .getActualHitbox(position);
-
-                    return hitbox.overlaps(new components.HitboxComponent(new Rect(
-                        pos.x, pos.y, game.tileSize, game.tileSize
-                    )));
-                }));
-
-                game.ecs.addComponent(log, components.PositionComponent, [pos, roomPos]);
-
-                // top left sprite in the items spritesheet
-                game.ecs.addComponent(
-                    log,
-                    components.ImageComponent,
-                    [game.images["items"], new Rect(0, 0, 16, 16)]
-                );
-
-                // hitbox the size of a tile
-                game.ecs.addComponent(
-                    log,
-                    components.HitboxComponent,
-                    [new Rect(1, 1, game.tileSize - 2, game.tileSize - 2)]
-                );
-
-                // allow the entity to be picked up
-                game.ecs.addComponent(log, components.HoldableComponent);
-            }
         }
     }
 

@@ -578,6 +578,8 @@ var _hit = require("./systems/hit");
 var _place = require("./systems/place");
 var _keyup = require("./systems/keyup");
 var _healthbar = require("./systems/healthbar");
+var _itemgen = require("./engine/itemgen");
+var _weapon = require("./systems/weapon");
 class Game {
     ecs = new (0, _ecs.ECS)(this);
     images = {};
@@ -673,6 +675,8 @@ class Game {
             ]);
             // generate the rooms using the function in mapgen.ts
             this.rooms = (0, _mapgen.generateMap)(this);
+            // add items to the rooms
+            (0, _itemgen.addItems)(this);
             // bring the player to the front so they are drawn on top of everything else
             // (this is so that items without hitboxes will be drawn behind the player)
             this.ecs.bringToFront(this.player);
@@ -684,6 +688,7 @@ class Game {
             this.ecs.systemManager.addSystem(new (0, _keyup.KeyUpSystem)());
             this.ecs.systemManager.addSystem(new (0, _render.RenderSystem)());
             this.ecs.systemManager.addSystem(new (0, _healthbar.HealthBarSystem)());
+            this.ecs.systemManager.addSystem(new (0, _weapon.WeaponSystem)());
             // start the game loop
             this.tick();
         });
@@ -728,7 +733,7 @@ class Game {
 exports.default = Game;
 const game = new Game(document.querySelector("canvas"), 4);
 
-},{"./components":"hVzNr","./systems/controllable":"6hz4e","./engine/ecs":"bTIAG","./systems/render":"lpuAS","./helpers":"e7qJp","./systems/walking":"jMNjN","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH","./engine/mapgen":"lyfm3","./systems/place":"5rRAM","./systems/keyup":"gd8Fk","./systems/healthbar":"tDHYI","./systems/hit":"1OXJn"}],"hVzNr":[function(require,module,exports) {
+},{"./components":"hVzNr","./systems/controllable":"6hz4e","./engine/ecs":"bTIAG","./systems/render":"lpuAS","./helpers":"e7qJp","./systems/walking":"jMNjN","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH","./engine/mapgen":"lyfm3","./systems/place":"5rRAM","./systems/keyup":"gd8Fk","./systems/healthbar":"tDHYI","./systems/hit":"1OXJn","./engine/itemgen":"2lDf3","./systems/weapon":"el55c"}],"hVzNr":[function(require,module,exports) {
 /* 
  * components.ts
  *
@@ -743,6 +748,7 @@ parcelHelpers.export(exports, "SpeedComponent", ()=>SpeedComponent);
 parcelHelpers.export(exports, "HitboxComponent", ()=>HitboxComponent);
 parcelHelpers.export(exports, "HandsComponent", ()=>HandsComponent);
 parcelHelpers.export(exports, "HealthComponent", ()=>HealthComponent);
+parcelHelpers.export(exports, "WeaponComponent", ()=>WeaponComponent);
 // entity can be controlled by the user
 parcelHelpers.export(exports, "ControllableComponent", ()=>ControllableComponent);
 // these components don't need data, they're just flags
@@ -750,6 +756,7 @@ parcelHelpers.export(exports, "WalkingComponent", ()=>WalkingComponent) // entit
 ;
 parcelHelpers.export(exports, "HoldableComponent", ()=>HoldableComponent) // entity can be picked up
 ;
+var _ecs = require("./engine/ecs");
 var _helpers = require("./helpers");
 class PositionComponent {
     constructor(pixels, room){
@@ -852,6 +859,12 @@ class HealthComponent {
         this.health;
     }
 }
+class WeaponComponent extends (0, _ecs.Component) {
+    constructor(damage){
+        super();
+        this.damage = damage;
+    }
+}
 class ControllableComponent {
     sneaking = false;
 }
@@ -860,7 +873,7 @@ class WalkingComponent {
 class HoldableComponent {
 }
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH","./helpers":"e7qJp"}],"b4oyH":[function(require,module,exports) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH","./helpers":"e7qJp","./engine/ecs":"bTIAG"}],"b4oyH":[function(require,module,exports) {
 exports.interopDefault = function(a) {
     return a && a.__esModule ? a : {
         default: a
@@ -915,11 +928,17 @@ class Vec {
     shifted(vec) {
         return new Vec(this.x + vec.x, this.y + vec.y);
     }
+    // scale a vector from one range to another
     scaled(from, to) {
         return new Vec(this.x / from * to, this.y / from * to);
     }
+    // returns the vector of the center given the width of a tile
     centred(tileSize) {
-        return new Vec(this.x - tileSize / 2, this.y - tileSize / 2);
+        return new Vec(this.x + tileSize / 2, this.y + tileSize / 2);
+    }
+    // checks if a vector is inside a rectangle
+    isInside(rect) {
+        return this.x >= rect.x && this.x <= rect.x + rect.width && this.y >= rect.y && this.y <= rect.y + rect.height;
     }
     clone() {
         return new Vec(this.x, this.y);
@@ -982,65 +1001,13 @@ const attemptPlace = (game, hands, pos)=>{
          * need to set it to a clone of that position so it's always
          * in the room it was just placed in (until picked up again).
          */ itemPosition.room = itemPosition.room.clone();
+        game.ecs.bringToFront(item);
+        game.ecs.bringToFront(game.player);
         return true;
     }
 };
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH","./components":"hVzNr"}],"6hz4e":[function(require,module,exports) {
-/* 
- * systems/controllable.ts
- *
- * This system is responsible for adjusting the horizontal and vertical speed
- * (stored in the speed component) of controllable entities based on keynoard
- * input, and moving the entity between rooms when it goes through a door. 
- * The system doesn't actually move the entity - that's done by the walking 
- * system in walking.ts.
- */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "ControllableSystem", ()=>ControllableSystem);
-var _components = require("../components");
-var _ecs = require("../engine/ecs");
-class ControllableSystem extends (0, _ecs.System) {
-    constructor(){
-        super([
-            _components.ControllableComponent,
-            _components.SpeedComponent,
-            _components.PositionComponent
-        ], (0, _ecs.SystemTrigger).Keyboard, (game, entity)=>{
-            // get components
-            const speed = game.ecs.getComponent(entity, _components.SpeedComponent);
-            if (game.keys["a"] || game.keys["arrowleft"]) {
-                if (game.keys["w"] || game.keys["arrowup"]) [speed.speedX, speed.speedY] = speed.speedsTo(-1, -1);
-                else if (game.keys["s"] || game.keys["arrowdown"]) [speed.speedX, speed.speedY] = speed.speedsTo(-1, 1);
-                else [speed.speedX, speed.speedY] = speed.speedsTo(-1, 0);
-            } else if (game.keys["d"] || game.keys["arrowright"]) {
-                if (game.keys["w"] || game.keys["arrowup"]) [speed.speedX, speed.speedY] = speed.speedsTo(1, -1);
-                else if (game.keys["s"] || game.keys["arrowdown"]) [speed.speedX, speed.speedY] = speed.speedsTo(1, 1);
-                else [speed.speedX, speed.speedY] = speed.speedsTo(1, 0);
-            } else if (game.keys["w"] || game.keys["arrowup"]) [speed.speedX, speed.speedY] = speed.speedsTo(0, -1);
-            else if (game.keys["s"] || game.keys["arrowdown"]) [speed.speedX, speed.speedY] = speed.speedsTo(0, 1);
-            else {
-                speed.speedX = 0;
-                speed.speedY = 0;
-            }
-            // use shift key to sneak
-            // at the moment this does nothing, but once enemies are 
-            // added it will make it harder for them to find you
-            if (game.keys["shift"]) {
-                // halve the speed
-                speed.speedX /= 2;
-                speed.speedY /= 2;
-                // let the ControllableComponent know that the entity is sneaking
-                const ControllableComponent = game.ecs.getComponent(entity, _components.ControllableComponent);
-                ControllableComponent.sneaking = true;
-            }
-            // get position component
-            const position = game.ecs.getComponent(entity, _components.PositionComponent);
-        });
-    }
-}
-
-},{"../components":"hVzNr","../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"bTIAG":[function(require,module,exports) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH","./components":"hVzNr"}],"bTIAG":[function(require,module,exports) {
 /* 
  * engine/ecs.ts
  *
@@ -1161,7 +1128,61 @@ class ECS {
     }
 }
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"lpuAS":[function(require,module,exports) {
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"6hz4e":[function(require,module,exports) {
+/* 
+ * systems/controllable.ts
+ *
+ * This system is responsible for adjusting the horizontal and vertical speed
+ * (stored in the speed component) of controllable entities based on keynoard
+ * input, and moving the entity between rooms when it goes through a door. 
+ * The system doesn't actually move the entity - that's done by the walking 
+ * system in walking.ts.
+ */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "ControllableSystem", ()=>ControllableSystem);
+var _components = require("../components");
+var _ecs = require("../engine/ecs");
+class ControllableSystem extends (0, _ecs.System) {
+    constructor(){
+        super([
+            _components.ControllableComponent,
+            _components.SpeedComponent,
+            _components.PositionComponent
+        ], (0, _ecs.SystemTrigger).Keyboard, (game, entity)=>{
+            // get components
+            const speed = game.ecs.getComponent(entity, _components.SpeedComponent);
+            if (game.keys["a"] || game.keys["arrowleft"]) {
+                if (game.keys["w"] || game.keys["arrowup"]) [speed.speedX, speed.speedY] = speed.speedsTo(-1, -1);
+                else if (game.keys["s"] || game.keys["arrowdown"]) [speed.speedX, speed.speedY] = speed.speedsTo(-1, 1);
+                else [speed.speedX, speed.speedY] = speed.speedsTo(-1, 0);
+            } else if (game.keys["d"] || game.keys["arrowright"]) {
+                if (game.keys["w"] || game.keys["arrowup"]) [speed.speedX, speed.speedY] = speed.speedsTo(1, -1);
+                else if (game.keys["s"] || game.keys["arrowdown"]) [speed.speedX, speed.speedY] = speed.speedsTo(1, 1);
+                else [speed.speedX, speed.speedY] = speed.speedsTo(1, 0);
+            } else if (game.keys["w"] || game.keys["arrowup"]) [speed.speedX, speed.speedY] = speed.speedsTo(0, -1);
+            else if (game.keys["s"] || game.keys["arrowdown"]) [speed.speedX, speed.speedY] = speed.speedsTo(0, 1);
+            else {
+                speed.speedX = 0;
+                speed.speedY = 0;
+            }
+            // use shift key to sneak
+            // at the moment this does nothing, but once enemies are 
+            // added it will make it harder for them to find you
+            if (game.keys["shift"]) {
+                // halve the speed
+                speed.speedX /= 2;
+                speed.speedY /= 2;
+                // let the ControllableComponent know that the entity is sneaking
+                const ControllableComponent = game.ecs.getComponent(entity, _components.ControllableComponent);
+                ControllableComponent.sneaking = true;
+            }
+            // get position component
+            const position = game.ecs.getComponent(entity, _components.PositionComponent);
+        });
+    }
+}
+
+},{"../components":"hVzNr","../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"lpuAS":[function(require,module,exports) {
 /* 
  * systems/render.ts
  *
@@ -1499,33 +1520,6 @@ const generateMap = (game)=>{
                 ]);
             }
         }
-        // 3-5 logs in each room
-        for(let i = 0; i < (0, _helpers.randInt)(5, 10); i++){
-            const log = game.ecs.createEntity();
-            let pos;
-            do pos = new (0, _helpers.Vec)(((0, _helpers.randInt)(2, game.roomSize.x - 3) + Math.random() - .5) * game.tileSize, ((0, _helpers.randInt)(2, game.roomSize.y - 3) + Math.random() - .5) * game.tileSize);
-            while (room.entities.some((entity)=>{
-                if (!game.ecs.hasComponent(entity, _components.HitboxComponent)) return false;
-                const position = game.ecs.getComponent(entity, _components.PositionComponent);
-                const hitbox = game.ecs.getComponent(entity, _components.HitboxComponent).getActualHitbox(position);
-                return hitbox.overlaps(new _components.HitboxComponent(new (0, _helpers.Rect)(pos.x, pos.y, game.tileSize, game.tileSize)));
-            }));
-            game.ecs.addComponent(log, _components.PositionComponent, [
-                pos,
-                roomPos
-            ]);
-            // top left sprite in the items spritesheet
-            game.ecs.addComponent(log, _components.ImageComponent, [
-                game.images["items"],
-                new (0, _helpers.Rect)(0, 0, 16, 16)
-            ]);
-            // hitbox the size of a tile
-            game.ecs.addComponent(log, _components.HitboxComponent, [
-                new (0, _helpers.Rect)(1, 1, game.tileSize - 2, game.tileSize - 2)
-            ]);
-            // allow the entity to be picked up
-            game.ecs.addComponent(log, _components.HoldableComponent);
-        }
     }
     return rooms;
 };
@@ -1612,7 +1606,7 @@ class PlaceSystem extends (0, _ecs.System) {
             // if the mouse is more than 5 tiles away, don't do anything
             if (dist > game.tileSize * 5) return;
             const hands = game.ecs.getComponent(entity, _components.HandsComponent);
-            if (!hands.allEmpty()) (0, _helpers.attemptPlace)(game, hands, game.lastClickPos.centred(game.tileSize));
+            if (!hands.allEmpty()) (0, _helpers.attemptPlace)(game, hands, game.lastClickPos.shifted(new (0, _helpers.Vec)(-game.tileSize / 2, -game.tileSize / 2)));
         });
     }
 }
@@ -1746,35 +1740,66 @@ class HitSystem extends (0, _ecs.System) {
             _components.HandsComponent
         ], (0, _ecs.SystemTrigger).Click, (game, entity)=>{
             const handsComponent = game.ecs.getComponent(entity, _components.HandsComponent);
+            // try to get weapon entity from right hand, otherwise try left hand or null
+            const weaponEntity = game.ecs.hasComponent(handsComponent.rightHand, _components.WeaponComponent) ? handsComponent.rightHand : game.ecs.hasComponent(handsComponent.leftHand, _components.WeaponComponent) ? handsComponent.leftHand : null;
+            if (weaponEntity) {
+                const weaponComponent = game.ecs.getComponent(weaponEntity, _components.WeaponComponent);
+                weaponComponent.holder = entity; // let the weapon system know what's holding the weapon
+                weaponComponent.frameCount = 0; // reset frame count
+                weaponComponent.totalFrames = 15; // let the animation go for n frames
+                // position component of the entity holding the weapon
+                const holderPosition = game.ecs.getComponent(entity, _components.PositionComponent);
+                const holderCentre = holderPosition.pixels.centred(game.tileSize);
+                // 45 degrees above the angle of the mouse
+                weaponComponent.startAngle = Math.atan2(game.lastClickPos.y - holderCentre.y, game.lastClickPos.x - holderCentre.x);
+                // let the weapon swing 1/6th of a circle
+                weaponComponent.swingRadians = Math.PI / 3;
+                // move the pivot point 1/5th of a tile away from the holder's centre
+                weaponComponent.pivotPointOffset = new (0, _helpers.Vec)(Math.cos(weaponComponent.startAngle) * game.tileSize / 5, Math.sin(weaponComponent.startAngle) * game.tileSize / 5);
+            }
             // vector of the tile that was clicked (out of # of tiles, not in pixels)
             const hitTileVec = new (0, _helpers.Vec)(Math.floor(game.lastClickPos.x / game.tileSize), Math.floor(game.lastClickPos.y / game.tileSize));
             const entityPosition = game.ecs.getComponent(entity, _components.PositionComponent);
             // make a temporary hitbox the the size of a tile at the position of the clicked tile
             const tileHitbox = new _components.HitboxComponent((0, _helpers.Rect).fromVecs(new (0, _helpers.Vec)(hitTileVec.x * game.tileSize, hitTileVec.y * game.tileSize), new (0, _helpers.Vec)(game.tileSize, game.tileSize))).getActualHitbox(new _components.PositionComponent(hitTileVec, game.room));
-            // get a list of entities whose hitboxes are touching the clicked tile
-            const entitiesToHit = game.currentRoom.entities.filter((otherEntity)=>{
+            /* 
+             * The array of entities stored in the ECS object has them in an
+             * order which means that the entities drawn last (or, the ones
+             * that are on top) are at the end of the array, so we reverse it
+             * to prioritise hitting/picking up entities that on top of others.
+             * We also have to call Array.slice() with no arguments to make a
+             * copy of the array because Array.reverse() operates in place.
+             */ const entityToHit = game.currentRoom.entities.slice().reverse().find((otherEntity)=>{
                 if (!game.ecs.hasComponent(otherEntity, _components.HoldableComponent) && !game.ecs.hasComponent(otherEntity, _components.HealthComponent)) return false;
+                // ignore the entity hitting so that it doesn't hit itself
+                if (otherEntity === entity) return false;
                 const otherEntityPosition = game.ecs.getComponent(otherEntity, _components.PositionComponent);
                 // get the distances to the other entity
                 const dx = Math.abs(entityPosition.pixels.x - otherEntityPosition.pixels.x);
                 const dy = Math.abs(entityPosition.pixels.y - otherEntityPosition.pixels.y);
-                // ignore entities that are too far away for the player to reach
-                if (dx > game.tileSize * 1.4 || dy > game.tileSize * 1.4) return false;
+                const dist = Math.hypot(dx, dy);
+                // ignore entities that are too far away for the player to reach (more than 1.5 tiles away)
+                if (dist > game.tileSize * 1.8) return false;
+                // variable to remember if the entity's hitbox is temporary
                 let hasTempHitbox = false;
+                // if the entity doesn't have a hitbox, give it a temporary one
                 if (!game.ecs.hasComponent(otherEntity, _components.HitboxComponent)) {
-                    // if the entity doesn't have a hitbox, give it a temporary one
                     game.ecs.addComponent(otherEntity, _components.HitboxComponent, [
                         new (0, _helpers.Rect)(0, 0, game.tileSize, game.tileSize)
                     ]);
                     hasTempHitbox = true;
                 }
-                // get the hitbox of the entity we're checking
-                const entityHitbox = game.ecs.getComponent(entity, _components.HitboxComponent).getActualHitbox(otherEntityPosition);
+                // get the other entity's hitbox which is now guaranteed to exist
+                const otherEntityHitbox = game.ecs.getComponent(otherEntity, _components.HitboxComponent);
+                // temporary store the return value of this function so that a temporary hitbox can be removed
+                const ret = tileHitbox.overlaps(otherEntityHitbox.getActualHitbox(otherEntityPosition));
                 // if the entity has a temporary hitbox, remove it
                 if (hasTempHitbox) game.ecs.componentManagers.get(_components.HitboxComponent).removeComponent(otherEntity);
-                return entityHitbox.overlaps(tileHitbox);
+                return ret;
             });
-            for (const entityToHit of entitiesToHit)if (game.ecs.hasComponent(entityToHit, _components.HoldableComponent) && handsComponent.hasSpace()) {
+            if (entityToHit && // if there is an entity to hit
+            handsComponent.hasSpace() // and there's a free hand
+            ) {
                 // pick it up by storing it in the hands component and store a reference to where it was stored
                 const item = handsComponent.addItem(entityToHit, "left");
                 // move the entity so that it's in of the item box
@@ -1786,5 +1811,89 @@ class HitSystem extends (0, _ecs.System) {
     }
 }
 
-},{"../components":"hVzNr","../engine/ecs":"bTIAG","../helpers":"e7qJp","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}]},["83cNV","2G5F2"], "2G5F2", "parcelRequirec2fe")
+},{"../components":"hVzNr","../engine/ecs":"bTIAG","../helpers":"e7qJp","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"2lDf3":[function(require,module,exports) {
+/* 
+ * engine/itemgen.ts
+ *
+ * This file contains the addItems function, which takes in a reference to the
+ * game object and adds different items into the map (a flat array of rooms
+ * generated by the generateMap function in mapgen.ts) based on what level the 
+ * player is in.
+ */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "addItems", ()=>addItems);
+var _components = require("../components");
+var _helpers = require("../helpers");
+const newItem = (game, room, image, frame)=>{
+    const entity = game.ecs.createEntity();
+    let pixelPos;
+    do pixelPos = new (0, _helpers.Vec)(((0, _helpers.randInt)(2, game.roomSize.x - 3) + Math.random() - .5) * game.tileSize, ((0, _helpers.randInt)(2, game.roomSize.y - 3) + Math.random() - .5) * game.tileSize);
+    while (room.entities.some((entity)=>{
+        if (!game.ecs.hasComponent(entity, _components.HitboxComponent)) return false;
+        const position = game.ecs.getComponent(entity, _components.PositionComponent);
+        const hitbox = game.ecs.getComponent(entity, _components.HitboxComponent).getActualHitbox(position);
+        return hitbox.overlaps(new _components.HitboxComponent(new (0, _helpers.Rect)(pixelPos.x, pixelPos.y, game.tileSize, game.tileSize)));
+    }));
+    game.ecs.addComponent(entity, _components.PositionComponent, [
+        pixelPos,
+        room.pos
+    ]);
+    game.ecs.addComponent(entity, _components.ImageComponent, [
+        image,
+        frame
+    ]);
+    // allow all items to be picked up
+    game.ecs.addComponent(entity, _components.HoldableComponent);
+    return entity;
+};
+const addItems = (game)=>{
+    for (const room of game.rooms)// 3-5 logs in each room
+    for(let i = 0; i < (0, _helpers.randInt)(5, 10); i++){
+        const log = newItem(game, room, game.images["items"], new (0, _helpers.Rect)(0, 0, 16, 16));
+        game.ecs.addComponent(log, _components.HitboxComponent, [
+            new (0, _helpers.Rect)(1, 1, game.tileSize - 1, game.tileSize - 1)
+        ]);
+    }
+    // add a stick in the room the player starts in
+    const stick = newItem(game, game.currentRoom, game.images["items"], new (0, _helpers.Rect)(0, 16, 16, 16));
+    game.ecs.addComponent(stick, _components.WeaponComponent, [
+        5
+    ]);
+};
+
+},{"../components":"hVzNr","../helpers":"e7qJp","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}],"el55c":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "WeaponSystem", ()=>WeaponSystem);
+var _components = require("../components");
+var _ecs = require("../engine/ecs");
+class WeaponSystem extends (0, _ecs.System) {
+    constructor(){
+        super([
+            _components.WeaponComponent
+        ], (0, _ecs.SystemTrigger).Tick, (game, entity)=>{
+            const weapon = game.ecs.getComponent(entity, _components.WeaponComponent);
+            if (weapon.frameCount < weapon.totalFrames) {
+                weapon.frameCount++;
+                const weaponImage = game.ecs.getComponent(entity, _components.ImageComponent);
+                const holderPosition = game.ecs.getComponent(weapon.holder, _components.PositionComponent);
+                const holderCentre = holderPosition.pixels.centred(game.tileSize);
+                // save the current context state
+                game.ctx.save();
+                // move the context's origin to the center of the holder
+                game.ctx.translate(weapon.pivotPointOffset.x + holderCentre.x, weapon.pivotPointOffset.y + holderCentre.y);
+                // rotate the context around the top left corner of where it was just moved to
+                game.ctx.rotate(weapon.startAngle + weapon.swingRadians * weapon.frameCount / weapon.totalFrames);
+                // draw the weapon on the rotated context
+                game.ctx.drawImage(weaponImage.image, weaponImage.frame.x, weaponImage.frame.y, weaponImage.frame.width, weaponImage.frame.height, // move the weapon up so it pivots around the bottom left corner of the weapon
+                0, -game.tileSize * .8, // scale the weapon down a bit
+                game.tileSize * .8, game.tileSize * .8);
+                // restore the context to what it was before the weapon was drawn
+                game.ctx.restore();
+            }
+        });
+    }
+}
+
+},{"../components":"hVzNr","../engine/ecs":"bTIAG","@parcel/transformer-js/src/esmodule-helpers.js":"b4oyH"}]},["83cNV","2G5F2"], "2G5F2", "parcelRequirec2fe")
 

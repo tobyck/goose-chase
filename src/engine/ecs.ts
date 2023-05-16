@@ -10,7 +10,7 @@
  */
 
 import type Game from "../main";
-import type { Room } from "./room";
+import { type Room } from "./room";
 
 export type Entity = number;
 
