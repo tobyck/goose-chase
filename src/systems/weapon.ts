@@ -1,6 +1,5 @@
 import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
-import { Vec } from "../helpers";
 
 export class WeaponSystem extends System {
     constructor() {

@@ -29,7 +29,7 @@ export class Room {
         bottom: number[],
         left: number[],
         right: number[]
-    }
+    };
 
     constructor(game: Game, pos: Vec) {
         this.game = game;
@@ -85,7 +85,7 @@ export class Room {
                     y * tw,
                     tw,
                     tw
-                )
+                );
             }
         }
     }
@@ -93,12 +93,14 @@ export class Room {
     // getter function to get the entities which are in this room
 
     get entities() {
-        return this.game.ecs.entities.filter(entity => {
+        // return room's entities with item boxes prepended (so that collisions 
+        // work for them even in other rooms and they're rendered on top)
+        return [this.game.leftHandItemBox, this.game.rightHandItemBox].concat(this.game.ecs.entities.filter(entity => {
             if (!this.game.ecs.hasComponent(entity, components.PositionComponent)) return false;
             return Vec.equal(
                 this.game.ecs.getComponent(entity, components.PositionComponent).room,
                 this.pos
-            )
-        });
+            );
+        }));
     }
 }

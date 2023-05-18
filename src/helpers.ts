@@ -78,11 +78,11 @@ export class Rect {
 // random integer between min and max (inclusive)
 export const randInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+};
 
 // checks if a hitbox collides with any other hitboxes in the game's current room
-export const anyHitboxesCollide = (game: Game, entity: Entity): boolean => {
-    return game.currentRoom.entities.some(otherEntity => {
+export const anyHitboxesCollide = (game: Game, entity: Entity, room = game.currentRoom): boolean => {
+    return room.entities.some(otherEntity => {
         // don't check if the entity collides with itself
         if (otherEntity === entity) return false;
 
@@ -99,7 +99,7 @@ export const anyHitboxesCollide = (game: Game, entity: Entity): boolean => {
         // if the entity doesn't have a hitbox, it can't collide with anything
         return false;
     });
-}
+};
 
 // place item from hands at pos (centred) if it doesn't collide with anything
 // return true if the item was placed, false if it was put back in hands
@@ -150,4 +150,4 @@ export const attemptPlace = (game: Game, hands: HandsComponent, pos: Vec): boole
         game.ecs.bringToFront(game.player);
         return true;
     }
-}
+};

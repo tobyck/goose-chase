@@ -93,9 +93,6 @@ export class SystemManager {
         // get all systems with the specified trigger
         const systems = this.systems.filter(system => system.trigger === trigger);
 
-        // get entities in the current room
-        const entities = this.game.currentRoom.entities;
-
         // for each system with the specified trigger
         for (const system of systems) {
             for (

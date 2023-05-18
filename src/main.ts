@@ -35,6 +35,9 @@ export default class Game {
 
     level: number;
 
+    leftHandItemBox: Entity;
+    rightHandItemBox: Entity;
+
     leftHandItemPos: Vec;
     rightHandItemPos: Vec;
 
@@ -134,12 +137,12 @@ export default class Game {
 
             // add boxes to show items held by the player
 
-            this.leftHandItemPos = this.addItemBox(new Vec(
+            [this.leftHandItemBox, this.leftHandItemPos] = this.addItemBox(new Vec(
                 this.tileSize,
                 (this.roomSize.y - 4) * this.tileSize
             ));
 
-            this.rightHandItemPos = this.addItemBox(new Vec(
+            [this.rightHandItemBox, this.rightHandItemPos] = this.addItemBox(new Vec(
                 (this.roomSize.x - 4) * this.tileSize,
                 (this.roomSize.y - 4) * this.tileSize
             ));
@@ -214,7 +217,7 @@ export default class Game {
     // method to add a box to show items held by the player
     // returns the pixel position of where the item inside should be
 
-    addItemBox(pos: Vec): Vec {
+    addItemBox(pos: Vec): [Entity, Vec] {
         const itemBox = this.ecs.createEntity();
 
         this.ecs.addComponent(itemBox, components.ImageComponent, [
@@ -231,7 +234,7 @@ export default class Game {
             new Vec(26, 26).scaled(16, this.tileSize)
         )]);
 
-        return pos.shifted(new Vec(this.tileSize, this.tileSize));
+        return [itemBox, pos.shifted(new Vec(this.tileSize, this.tileSize))];
     }
 
     // re-render the whole game every frame using requestAnimationFrame

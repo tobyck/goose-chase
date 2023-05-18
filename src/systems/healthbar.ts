@@ -27,7 +27,7 @@ export class HealthBarSystem extends System {
                     game.tileSize * amount,
                     game.tileSize / 8
                 );
-            }
+            };
 
             // render a grey underlay
             renderHealthBar("#ccc", 1);

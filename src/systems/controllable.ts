@@ -60,9 +60,6 @@ export class ControllableSystem extends System {
                 const ControllableComponent = game.ecs.getComponent(entity, components.ControllableComponent);
                 ControllableComponent.sneaking = true;
             }
-
-            // get position component
-            const position = game.ecs.getComponent(entity, components.PositionComponent);
         });
     }
 }

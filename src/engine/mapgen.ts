@@ -24,7 +24,7 @@ const generateDoor = (minDistFromSide: number, sideWidth: number, doorWidth: num
 
     // return the range [start, start + doorWidth]
     return Array(doorWidth).fill(null).map((_, i) => start + i);
-}
+};
 
 /* 
  * The constructor of the Room class is responsible for generating the floor tiles
@@ -45,7 +45,7 @@ export const generateMap = (game: Game): Room[] => {
                 bottom: generateDoor(5, game.roomSize.x, 4),
                 left: generateDoor(3, game.roomSize.y, 3),
                 right: generateDoor(3, game.roomSize.y, 3)
-            }
+            };
 
             // remove doors that would lead outside the map
             if (roomX === 0) room.doors.left = []; // if the room is on the left edge of the map, remove the left door
@@ -73,7 +73,7 @@ export const generateMap = (game: Game): Room[] => {
                         right: "left"
                     }[door]
                 ];
-            }
+            };
 
             // remove doors if there's a room on the other side
             takeDoorFrom(roomPos.shifted(new Vec(0, -1)), room, "top");
@@ -198,4 +198,4 @@ export const generateMap = (game: Game): Room[] => {
     }
 
     return rooms;
-}
+};

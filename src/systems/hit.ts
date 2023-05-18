@@ -47,22 +47,10 @@ export class HitSystem extends System {
                 weaponComponent.pivotPointOffset = new Vec(
                     Math.cos(weaponComponent.startAngle) * game.tileSize / 5,
                     Math.sin(weaponComponent.startAngle) * game.tileSize / 5
-                )
+                );
             }
 
-            // vector of the tile that was clicked (out of # of tiles, not in pixels)
-            const hitTileVec = new Vec(
-                Math.floor(game.lastClickPos.x / game.tileSize),
-                Math.floor(game.lastClickPos.y / game.tileSize)
-            );
-
             const entityPosition = game.ecs.getComponent(entity, components.PositionComponent);
-
-            // make a temporary hitbox the the size of a tile at the position of the clicked tile
-            const tileHitbox = new components.HitboxComponent(Rect.fromVecs(
-                new Vec(hitTileVec.x * game.tileSize, hitTileVec.y * game.tileSize),
-                new Vec(game.tileSize, game.tileSize)
-            )).getActualHitbox(new components.PositionComponent(hitTileVec, game.room));
 
             /* 
              * The array of entities stored in the ECS object has them in an
@@ -107,7 +95,7 @@ export class HitSystem extends System {
                 const otherEntityHitbox = game.ecs.getComponent(otherEntity, components.HitboxComponent);
 
                 // temporary store the return value of this function so that a temporary hitbox can be removed
-                const ret = tileHitbox.overlaps(otherEntityHitbox.getActualHitbox(otherEntityPosition));
+                const ret = game.lastClickPos.isInside(otherEntityHitbox.getActualHitbox(otherEntityPosition));
 
                 // if the entity has a temporary hitbox, remove it
                 if (hasTempHitbox) {
@@ -134,7 +122,6 @@ export class HitSystem extends System {
                     : game.rightHandItemPos;
 
                 itemPosComponent.room = game.room;
-
             } else { // otherwise, it has health. will implement when there are things with the helath component
 
             }

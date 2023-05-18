@@ -8,7 +8,7 @@
  */
 
 import * as components from "../components";
-import { randInt, Vec, Rect } from "../helpers";
+import { randInt, Vec, Rect, anyHitboxesCollide } from "../helpers";
 import type Game from "../main";
 import { type Entity } from "./ecs";
 import { type Room } from "./room";
@@ -18,49 +18,54 @@ const newItem = (
     room: Room,
     image: CanvasImageSource,
     frame: Rect,
+    hitbox?: Rect
 ): Entity => {
     const entity = game.ecs.createEntity();
+
+    // use provided hitbox or create a temporary one
+    game.ecs.addComponent(
+        entity,
+        components.HitboxComponent,
+        [hitbox ?? new Rect(0, 0, game.tileSize, game.tileSize)]
+    );
 
     let pixelPos: Vec;
 
     do {
+        // set position on tile grid then add random offset
         pixelPos = new Vec(
             (randInt(2, game.roomSize.x - 3) + Math.random() - .5) * game.tileSize,
             (randInt(2, game.roomSize.y - 3) + Math.random() - .5) * game.tileSize
         );
-    } while (room.entities.some(entity => {
-        if (!game.ecs.hasComponent(entity, components.HitboxComponent))
-            return false;
 
-        const position = game.ecs.getComponent(entity, components.PositionComponent);
+        game.ecs.addComponent(entity, components.PositionComponent, [pixelPos, room.pos]);
+    } while (anyHitboxesCollide(game, entity, room));
 
-        const hitbox = game.ecs.getComponent(entity, components.HitboxComponent)
-            .getActualHitbox(position);
+    // if no hitbox was provided, remove the temporary one
+    if (!hitbox) {
+        game.ecs.componentManagers
+            .get(components.HitboxComponent)
+            .removeComponent(entity);
+    }
 
-        return hitbox.overlaps(new components.HitboxComponent(new Rect(
-            pixelPos.x, pixelPos.y, game.tileSize, game.tileSize
-        )));
-    }));
-
-    game.ecs.addComponent(entity, components.PositionComponent, [pixelPos, room.pos]);
     game.ecs.addComponent(entity, components.ImageComponent, [image, frame]);
 
     // allow all items to be picked up
     game.ecs.addComponent(entity, components.HoldableComponent);
 
     return entity;
-}
+};
 
 export const addItems = (game: Game): void => {
     for (const room of game.rooms) { // for each room in the map
-        // 3-5 logs in each room
+        // 5-10 logs in each room
         for (let i = 0; i < randInt(5, 10); i++) {
-            const log = newItem(game, room, game.images["items"], new Rect(0, 0, 16, 16));
-
-            game.ecs.addComponent(
-                log,
-                components.HitboxComponent,
-                [new Rect(1, 1, game.tileSize - 1, game.tileSize - 1)]
+            newItem(
+                game,
+                room,
+                game.images["items"],
+                new Rect(0, 0, 16, 16),
+                new Rect(1, 1, game.tileSize - 1, game.tileSize - 1)
             );
         }
     }
@@ -70,4 +75,4 @@ export const addItems = (game: Game): void => {
     const stick = newItem(game, game.currentRoom, game.images["items"], new Rect(0, 16, 16, 16));
 
     game.ecs.addComponent(stick, components.WeaponComponent, [5]);
-}
+};
