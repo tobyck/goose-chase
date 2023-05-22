@@ -18,5 +18,11 @@ Have a look at the Controls section below, then try it out on [tobyck.tech/goose
 
 ## Credits
 
+- [Skanne](https://www.youtube.com/@skannemusic) for the background music
+- [OpenGameArt](https://opengameart.org) for the sound effects, specifically these users:
+  - [tarfmagougou](https://opengameart.org/users/tarfmagougou)
+  - [lamoot](https://opengameart.org/users/lamoot)
+  - [qubodup](https://opengameart.org/users/qubodup)
+  - 
 - [BexcellentGames](https://www.gamedevmarket.net/member/BexcellentGames) for the inpiration for the character sprites
 - [The Slynyrd Blog](https://www.slynyrd.com/blog/2019/8/27/pixelblog-20-top-down-tiles) for floor tile inspiration

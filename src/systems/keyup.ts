@@ -7,7 +7,7 @@
 
 import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
-import { Vec, attemptPlace } from "../helpers";
+import { Vec, attemptPlace, cloneAudio } from "../helpers";
 
 export class KeyUpSystem extends System {
     constructor() {
@@ -46,6 +46,10 @@ export class KeyUpSystem extends System {
 
                     leftHandPos.pixels = game.leftHandItemPos;
                     rightHandPos.pixels = game.rightHandItemPos;
+                }
+
+                if (hands.leftHand || hands.rightHand) {
+                    cloneAudio(game.getAudio("swap_hands")).play();
                 }
             }
 

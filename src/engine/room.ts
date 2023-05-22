@@ -72,7 +72,7 @@ export class Room {
                 const tw = this.game.tileSize; // shorthand for tile width
 
                 this.game.ctx.drawImage(
-                    this.game.images["tiles"], // image
+                    this.game.getImage("tiles"),
 
                     // source x, y, width, and height
 

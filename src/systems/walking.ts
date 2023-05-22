@@ -9,7 +9,7 @@
 
 import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
-import { anyHitboxesCollide } from "../helpers";
+import { anyHitboxesCollide, cloneAudio } from "../helpers";
 
 export class WalkingSystem extends System {
     constructor() {
@@ -52,11 +52,17 @@ export class WalkingSystem extends System {
             // if moving
             if (speed.speedX !== 0 || speed.speedY !== 0) {
                 // change frame every x milliseconds depending on speed (350 is arbitrary)
-                const timeBetweenFrames = 1 / speed.currentVelocity * 350;
+                const timeBetweenFrames = 1 / speed.currentVelocity * 400;
                 if (Date.now() - image.lastFrameChange >= timeBetweenFrames) {
                     image.frame.x += 16; // move right one frame
                     image.frame.x %= 64; // wrap around to the first frame if at the end
                     image.lastFrameChange = Date.now();
+
+                    if (image.frame.x === 16 || image.frame.x === 48) {
+                        const clone = cloneAudio(game.getAudio("footstep"));
+                        clone.volume *= speed.currentVelocity / speed.velocity;
+                        clone.play();
+                    }
                 }
             } else {
                 image.frame.x = 0;

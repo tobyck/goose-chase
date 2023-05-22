@@ -148,6 +148,11 @@ export const attemptPlace = (game: Game, hands: HandsComponent, pos: Vec): boole
         itemPosition.room = itemPosition.room.clone();
         game.ecs.bringToFront(item);
         game.ecs.bringToFront(game.player);
+        cloneAudio(game.getAudio("place")).play();
         return true;
     }
 };
+
+export const cloneAudio = (audio: HTMLAudioElement): HTMLAudioElement => {
+    return audio.cloneNode() as HTMLAudioElement;
+}

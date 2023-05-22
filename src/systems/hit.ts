@@ -8,7 +8,7 @@
 
 import * as components from "../components";
 import { type Entity, System, SystemTrigger } from "../engine/ecs";
-import { Rect, Vec } from "../helpers";
+import { cloneAudio, Rect, Vec } from "../helpers";
 
 export class HitSystem extends System {
     constructor() {
@@ -106,24 +106,29 @@ export class HitSystem extends System {
                 return ret;
             });
 
-            if (
-                entityToHit && // if there is an entity to hit
-                handsComponent.hasSpace() // and there's a free hand
-            ) {
-                // pick it up by storing it in the hands component and store a reference to where it was stored
-                const item = handsComponent.addItem(entityToHit, "left");
+            if (entityToHit) { // if there is an entity to hit
+                if (game.ecs.hasComponent(entityToHit, components.HoldableComponent)) {
+                    if (handsComponent.hasSpace()) { // and there's a free hand
+                        // pick it up by storing it in the hands component and store a reference to where it was stored
+                        const item = handsComponent.addItem(entityToHit, "left");
 
-                // move the entity so that it's in of the item box
+                        // move the entity so that it's in of the item box
 
-                const itemPosComponent = game.ecs.getComponent(item, components.PositionComponent);
+                        const itemPosComponent = game.ecs.getComponent(item, components.PositionComponent);
 
-                itemPosComponent.pixels = handsComponent.leftHand === item
-                    ? game.leftHandItemPos
-                    : game.rightHandItemPos;
+                        itemPosComponent.pixels = handsComponent.leftHand === item
+                            ? game.leftHandItemPos
+                            : game.rightHandItemPos;
 
-                itemPosComponent.room = game.room;
-            } else { // otherwise, it has health. will implement when there are things with the helath component
+                        itemPosComponent.room = game.room;
 
+                        cloneAudio(game.getAudio("pick_up")).play();
+                    } else {
+                        cloneAudio(game.getAudio("decline")).play();
+                    }
+                } else { // otherwise it's an entity with health. implement damage here
+
+                }
             }
         });
     }
