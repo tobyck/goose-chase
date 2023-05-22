@@ -155,4 +155,4 @@ export const attemptPlace = (game: Game, hands: HandsComponent, pos: Vec): boole
 
 export const cloneAudio = (audio: HTMLAudioElement): HTMLAudioElement => {
     return audio.cloneNode() as HTMLAudioElement;
-}
+};

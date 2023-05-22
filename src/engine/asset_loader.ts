@@ -13,7 +13,7 @@ export class AssetLoader {
     assets: {
         images: HTMLImageElement[];
         audio: HTMLAudioElement[];
-    }
+    };
 
     constructor(sources: AssetSource[]) {
         this.#sources = sources;
@@ -44,9 +44,9 @@ export class AssetLoader {
                 this.assets = {
                     images: assets.filter(asset => asset instanceof HTMLImageElement),
                     audio: assets.filter(asset => asset instanceof HTMLAudioElement)
-                }
+                };
                 resolve(this.assets);
             }).catch(reject);
-        })
+        });
     }
 }

@@ -264,16 +264,16 @@ export default class Game {
 type Asset = HTMLImageElement | HTMLAudioElement;
 
 const assetLoader = new AssetLoader([
-    { type: AssetType.Image, path: "../assets/images/tiles.png" },
-    { type: AssetType.Image, path: "../assets/images/player.png" },
-    { type: AssetType.Image, path: "../assets/images/items.png" },
-    { type: AssetType.Image, path: "../assets/images/item_box.png" },
-    { type: AssetType.Audio, path: "../assets/sounds/music.mp3" },
-    { type: AssetType.Audio, path: "../assets/sounds/footstep.mp3" },
-    { type: AssetType.Audio, path: "../assets/sounds/pick_up.mp3" },
-    { type: AssetType.Audio, path: "../assets/sounds/place.mp3" },
-    { type: AssetType.Audio, path: "../assets/sounds/swap_hands.mp3" },
-    { type: AssetType.Audio, path: "../assets/sounds/decline.mp3" },
+    { type: AssetType.Image, path: "assets/images/tiles.png" },
+    { type: AssetType.Image, path: "assets/images/player.png" },
+    { type: AssetType.Image, path: "assets/images/items.png" },
+    { type: AssetType.Image, path: "assets/images/item_box.png" },
+    { type: AssetType.Audio, path: "assets/sounds/music.mp3" },
+    { type: AssetType.Audio, path: "assets/sounds/footstep.mp3" },
+    { type: AssetType.Audio, path: "assets/sounds/pick_up.mp3" },
+    { type: AssetType.Audio, path: "assets/sounds/place.mp3" },
+    { type: AssetType.Audio, path: "assets/sounds/swap_hands.mp3" },
+    { type: AssetType.Audio, path: "assets/sounds/decline.mp3" },
 ]);
 
 assetLoader.loadAll().then(assets => { // once all assets are loaded
