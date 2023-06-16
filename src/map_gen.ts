@@ -54,7 +54,7 @@ export const generateMap = (game: Game): Room[] => {
             if (roomY === game.roomCount.y - 1) room.doors.bottom = [];
 
             // function to get the room at a given vector from the local rooms array
-            const roomAtVec = (vec: Vec) => rooms.find(room => Vec.equal(room.pos, vec))!;
+            const roomAtVec = (vec: Vec) => rooms.find(room => Vec.equal(room.pos, vec));
 
             // takes a door from another room if there it's there
             const takeDoorFrom = (

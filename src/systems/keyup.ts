@@ -105,7 +105,7 @@ export default class KeyUpSystem extends System {
                             if (dropped) return;
                         }
                     }
-                }
+                };
 
                 // if a vector was chosen (i.e. the player was moving), drop the item there
                 if (vec) {

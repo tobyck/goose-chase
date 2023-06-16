@@ -62,6 +62,6 @@ export class AssetLoader {
         return {
             images: assets.filter(asset => asset instanceof HTMLImageElement) as HTMLImageElement[],
             audio: assets.filter(asset => asset instanceof HTMLAudioElement) as HTMLAudioElement[]
-        }
+        };
     }
 }

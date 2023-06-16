@@ -15,7 +15,7 @@ export default class RespawnSystem extends System {
 
                     // heal the entity to full health
                     const health = game.ecs.getComponent(entity, components.HealthComponent);
-                    health.heal(health.maxHealth)
+                    health.heal(health.maxHealth);
 
                     // if the entity is colliding with anything, move it to a random position
                     const position = game.ecs.getComponent(entity, components.PositionComponent);

@@ -72,4 +72,4 @@ export const hit = (game: Game, hitter: Entity, entityToHit: Entity) => {
             healthComponent.damage(damage);
         }
     }
-}
+};

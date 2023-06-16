@@ -251,7 +251,7 @@ export const tryMove = (game: Game, entity: Entity): void => {
             )
         )
     ) position.pixels.y -= speedY;
-}
+};
 
 /**
  * Gives an entity a random pixel position in a room making sure it doesn't 
@@ -277,4 +277,4 @@ export const setRandomEntityPos = (game: Game, room: Room, entity: Entity): void
 
 export const isHidden = (ecs: ECS, entity: Entity): boolean => {
     return ecs.hasComponent(entity, components.HiddenComponent);
-}
+};

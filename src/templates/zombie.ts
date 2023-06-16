@@ -2,7 +2,6 @@ import * as components from "../components";
 import { Room } from "../engine/room";
 import { Rect, setRandomEntityPos, Vec } from "../helpers";
 import Game from "../main";
-import { newItemEntity } from "./item";
 
 export const newZombieEntity = (game: Game, room: Room) => {
     const zombie = game.ecs.createEntity();
@@ -45,4 +44,4 @@ export const newZombieEntity = (game: Game, room: Room) => {
     game.ecs.addComponent(zombie, components.HandsComponent, [stick, null]);
     game.ecs.addComponent(zombie, components.WalkingComponent, [false]);
     game.ecs.addComponent(zombie, components.ParticleColorComponent, ["#bb0000"]);
-}
+};

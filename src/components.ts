@@ -6,7 +6,7 @@
  * if it's just a flag to indicate that an entity has a certain capability.
  */
 
-import { Component, SystemTrigger, type Entity } from "./engine/ecs";
+import { Component, type Entity } from "./engine/ecs";
 import { Particle } from "./engine/particle";
 import { randInt, Rect, Vec } from "./helpers";
 import Game from "./main";
