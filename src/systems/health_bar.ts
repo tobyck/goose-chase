@@ -9,7 +9,7 @@
 import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
 
-export class HealthBarSystem extends System {
+export default class HealthBarSystem extends System {
     constructor() {
         super([
             components.HealthComponent,
@@ -18,6 +18,7 @@ export class HealthBarSystem extends System {
             const healthComponent = game.ecs.getComponent(entity, components.HealthComponent);
             const positionComponent = game.ecs.getComponent(entity, components.PositionComponent);
 
+            // function to render a health bar with a given colour and amount (decimal between 0 and 1)
             const renderHealthBar = (colour: string, amount: number) => {
                 game.ctx.fillStyle = colour;
 

@@ -8,11 +8,12 @@ import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
 import { attemptPlace, Vec } from "../helpers";
 
-export class PlaceSystem extends System {
+export default class PlaceSystem extends System {
     constructor() {
         super([
             components.HandsComponent,
-            components.PositionComponent
+            components.PositionComponent,
+            components.ControllableComponent
         ], SystemTrigger.RightClick, (game, entity) => {
             const position = game.ecs.getComponent(entity, components.PositionComponent);
 
@@ -26,12 +27,10 @@ export class PlaceSystem extends System {
 
             const hands = game.ecs.getComponent(entity, components.HandsComponent);
 
-            if (!hands.allEmpty()) {
-                attemptPlace(game, hands, game.lastClickPos.shifted(new Vec(
-                    -game.tileSize / 2,
-                    -game.tileSize / 2
-                )));
-            }
+            attemptPlace(game, hands, game.lastClickPos.shifted(new Vec(
+                -game.tileSize / 2,
+                -game.tileSize / 2
+            )));
         });
     }
 }

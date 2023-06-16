@@ -1,7 +1,14 @@
+/* 
+ * systems/weapon.ts
+ * 
+ * This system is responsible for rendering the player's weapon using the data
+ * in the player's WeaponComponent.
+ */
+
 import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
 
-export class WeaponSystem extends System {
+export default class WeaponSystem extends System {
     constructor() {
         super([
             components.WeaponComponent
@@ -19,7 +26,7 @@ export class WeaponSystem extends System {
                 // save the current context state
                 game.ctx.save();
 
-                // move the context's origin to the center of the holder
+                // move the context's origin to the center of the holder (then offset by the vector set in HitSystem)
                 game.ctx.translate(
                     weapon.pivotPointOffset.x + holderCentre.x,
                     weapon.pivotPointOffset.y + holderCentre.y

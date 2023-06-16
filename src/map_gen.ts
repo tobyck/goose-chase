@@ -6,10 +6,10 @@
  * which also line up with the doors in the adjacent rooms.
  */
 
-import * as components from "../components";
-import type Game from "../main";
-import { randInt, Rect, Vec } from "../helpers";
-import { Room } from "./room";
+import * as components from "./components";
+import type Game from "./main";
+import { randInt, Rect, Vec } from "./helpers";
+import { Room } from "./engine/room";
 
 /* 
  * Given the minimum distance from the side of the room, and the width of the door
@@ -54,7 +54,7 @@ export const generateMap = (game: Game): Room[] => {
             if (roomY === game.roomCount.y - 1) room.doors.bottom = [];
 
             // function to get the room at a given vector from the local rooms array
-            const roomAtVec = (vec: Vec) => rooms.find(room => Vec.equal(room.pos, vec));
+            const roomAtVec = (vec: Vec) => rooms.find(room => Vec.equal(room.pos, vec))!;
 
             // takes a door from another room if there it's there
             const takeDoorFrom = (
@@ -102,7 +102,7 @@ export const generateMap = (game: Game): Room[] => {
                             [new Vec(x * game.tileSize, y * game.tileSize), roomPos]
                         );
 
-                        // 2nd and third args for ImageComponent (see componentns/image.ts)
+                        // x and y args for the Rect object for the frame in the spritesheet
                         let frame: [number, number];
 
                         // args for HitboxComponent (x, y, width, height)

@@ -5,8 +5,9 @@
  * classes used throughout the codebase.
  */
 
-import { HandsComponent, HitboxComponent, PositionComponent } from "./components";
-import { Entity } from "./engine/ecs";
+import * as components from "./components";
+import { ECS, Entity } from "./engine/ecs";
+import { Room } from "./engine/room";
 import Game from "./main";
 
 export class Vec {
@@ -24,6 +25,20 @@ export class Vec {
 
     shifted(vec: Vec): Vec {
         return new Vec(this.x + vec.x, this.y + vec.y);
+    }
+
+    multiplied(n: number): Vec {
+        return new Vec(this.x * n, this.y * n);
+    }
+
+    angleTo(vec: Vec): number {
+        return Math.atan2(vec.y - this.y, vec.x - this.x);
+    }
+
+    distTo(vec: Vec): number {
+        const dx = vec.x - this.x;
+        const dy = vec.y - this.y;
+        return Math.hypot(dx, dy);
     }
 
     // scale a vector from one range to another
@@ -80,30 +95,68 @@ export const randInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
-// checks if a hitbox collides with any other hitboxes in the game's current room
-export const anyHitboxesCollide = (game: Game, entity: Entity, room = game.currentRoom): boolean => {
-    return room.entities.some(otherEntity => {
-        // don't check if the entity collides with itself
-        if (otherEntity === entity) return false;
+/**
+ * @param game The game object
+ * @param entity The entity to check for collisions
+ * @param room The room to check for collisions in (defaults to the player's current room)
+ * @returns Whether or not the entity's hitbox collides with any other hitboxes in the room
+ */
 
-        if (game.ecs.hasComponent(otherEntity, HitboxComponent)) {
-            const hitbox = game.ecs.getComponent(entity, HitboxComponent)
-                .getActualHitbox(game.ecs.getComponent(entity, PositionComponent));
+export const anyHitboxesCollide = (game: Game, entity: Entity, room = game.roomAt(game.playerRoomPos)): boolean => {
+    const position = game.ecs.getComponent(entity, components.PositionComponent);
 
-            const otherHitbox = game.ecs.getComponent(otherEntity, HitboxComponent)
-                .getActualHitbox(game.ecs.getComponent(otherEntity, PositionComponent));
+    if (game.ecs.hasComponent(entity, components.HitboxComponent)) {
+        return room.entities.some(otherEntity => {
+            // don't check if the entity collides with itself
+            if (otherEntity === entity) return false;
 
-            return hitbox.overlaps(otherHitbox);
-        }
+            if (game.ecs.hasComponent(otherEntity, components.HitboxComponent)) {
+                const otherHitbox = game.ecs.getComponent(otherEntity, components.HitboxComponent)
+                    .getActualHitbox(game.ecs.getComponent(otherEntity, components.PositionComponent));
 
-        // if the entity doesn't have a hitbox, it can't collide with anything
-        return false;
-    });
+                const hitbox = game.ecs.getComponent(entity, components.HitboxComponent)
+                    .getActualHitbox(position);
+
+                return hitbox.overlaps(otherHitbox);
+            }
+
+            // if the entity doesn't have a hitbox, it can't collide with anything
+            return false;
+        });
+    } else {
+        const lhHitbox = game.ecs.getComponent(game.leftHandItemBox, components.HitboxComponent)
+            .getActualHitbox(game.ecs.getComponent(game.leftHandItemBox, components.PositionComponent));
+
+        const rhHitbox = game.ecs.getComponent(game.rightHandItemBox, components.HitboxComponent)
+            .getActualHitbox(game.ecs.getComponent(game.rightHandItemBox, components.PositionComponent));
+
+        // add a temporary hitbox
+        game.ecs.addComponent(entity, components.HitboxComponent, [new Rect(0, 0, game.tileSize, game.tileSize)]);
+
+        const hitbox = game.ecs.getComponent(entity, components.HitboxComponent)
+            .getActualHitbox(position);
+
+        let ret: boolean;
+
+        if (lhHitbox.overlaps(hitbox) || rhHitbox.overlaps(hitbox)) ret = true;
+        else ret = false;
+
+        // remove temporary hitbox
+        game.ecs.removeComponent(entity, components.HitboxComponent);
+
+        return ret;
+    }
 };
 
-// place item from hands at pos (centred) if it doesn't collide with anything
-// return true if the item was placed, false if it was put back in hands
-export const attemptPlace = (game: Game, hands: HandsComponent, pos: Vec): boolean => {
+/**
+ * Place item from hands at `pos` if it doesn't collide with anything
+ * @param game The game object
+ * @param hands The hands component of the player
+ * @param pos The position to place the item at (centred)
+ * @returns True if the item was placed, false if it was put back in hands
+ */
+
+export const attemptPlace = (game: Game, hands: components.HandsComponent, pos: Vec): boolean => {
     /* 
      * This if statement makes sure that an item isn't placed if either there's
      * nothing to place, or if placing it could cause it to be within half
@@ -124,16 +177,13 @@ export const attemptPlace = (game: Game, hands: HandsComponent, pos: Vec): boole
 
     const [item, hand] = hands.takeItem();
 
-    const itemPosition = game.ecs.getComponent(item, PositionComponent);
+    const itemPosition = game.ecs.getComponent(item, components.PositionComponent);
 
     const oldPixelPos = itemPosition.pixels.clone();
 
     itemPosition.pixels = pos;
 
-    if (
-        game.ecs.hasComponent(item, HitboxComponent) &&
-        anyHitboxesCollide(game, item)
-    ) {
+    if (anyHitboxesCollide(game, item)) {
         itemPosition.pixels = oldPixelPos;
         hands.addItem(item, hand);
         return false;
@@ -146,13 +196,85 @@ export const attemptPlace = (game: Game, hands: HandsComponent, pos: Vec): boole
          * in the room it was just placed in (until picked up again).
          */
         itemPosition.room = itemPosition.room.clone();
+
+        // make sure the item is placed on top of everything else
         game.ecs.bringToFront(item);
-        game.ecs.bringToFront(game.player);
+
+        // (except walking entities)
+        game.ecs.entitiesWithComponents(game.roomAt(game.playerRoomPos), [components.WalkingComponent])
+            .forEach(game.ecs.bringToFront, game.ecs);
+
         cloneAudio(game.getAudio("place")).play();
+
         return true;
     }
 };
 
+// creates a clone of an audio element
+// this is used so that the same audio can be overlapped
 export const cloneAudio = (audio: HTMLAudioElement): HTMLAudioElement => {
     return audio.cloneNode() as HTMLAudioElement;
 };
+
+/**
+ * Move an entity on each axis if it doesn't collide with anything
+ * @param game The game object
+ * @param entity The entity to try to move
+ */
+
+export const tryMove = (game: Game, entity: Entity): void => {
+    const position = game.ecs.getComponent(entity, components.PositionComponent);
+    const speed = game.ecs.getComponent(entity, components.SpeedComponent);
+
+    const speedX = speed.speedX * game.tileSize / game.currentFrameRate;
+    const speedY = speed.speedY * game.tileSize / game.currentFrameRate;
+
+    position.pixels.x += speedX; // move by x speed
+    // if there's a collision, move back
+    if (
+        anyHitboxesCollide(game, entity) || (
+            // if the entity is an NPC, don't let it go near the edge
+            entity !== game.player && (
+                position.pixels.x < game.tileSize / 2 ||
+                position.pixels.x > game.canvas.width - game.tileSize * 1.5
+            )
+        )
+    ) position.pixels.x -= speedX;
+
+    // same thing with y speed
+    position.pixels.y += speedY;
+    if (
+        anyHitboxesCollide(game, entity) || (
+            entity !== game.player && (
+                position.pixels.y < game.tileSize / 2 ||
+                position.pixels.y > game.canvas.height - game.tileSize * 1.5
+            )
+        )
+    ) position.pixels.y -= speedY;
+}
+
+/**
+ * Gives an entity a random pixel position in a room making sure it doesn't 
+ * collide with any other entities
+ * @param game The game object
+ * @param room The room to place the entity in
+ * @param entity The entity to set the position of
+ */
+
+export const setRandomEntityPos = (game: Game, room: Room, entity: Entity): void => {
+    let pixelPos: Vec;
+
+    do {
+        // set position on tile grid then add random offset
+        pixelPos = new Vec(
+            (randInt(2, game.roomSize.x - 3) + Math.random() - .5) * game.tileSize,
+            (randInt(2, game.roomSize.y - 3) + Math.random() - .5) * game.tileSize
+        );
+
+        game.ecs.addComponent(entity, components.PositionComponent, [pixelPos, room.pos]);
+    } while (anyHitboxesCollide(game, entity, room));
+};
+
+export const isHidden = (ecs: ECS, entity: Entity): boolean => {
+    return ecs.hasComponent(entity, components.HiddenComponent);
+}

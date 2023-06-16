@@ -4,7 +4,8 @@
  * This file contains the Room class which represents a single room in the game.
  * The class has a reference to the game object that it belongs to, its
  * position in the game, and a 2D array of tiles. Although every room also
- * has walls, they can be collided so they're implemented as entities.
+ * has walls, they can be collided with so they're implemented as entities
+ * unlike the floor tiles.
  */
 
 import * as components from "../components";
@@ -22,8 +23,10 @@ enum Tile {
 
 export class Room {
     game: Game; // reference to the game object that this room is a part of
-    pos: Vec;
-    tiles: Tile[][] = [];
+    pos: Vec; // position of the room in the game
+    tiles: Tile[][] = []; // 2D array of tiles
+
+    // see map_gen.ts for more what this is for
     doors: {
         top: number[],
         bottom: number[],
@@ -95,12 +98,17 @@ export class Room {
     get entities() {
         // return room's entities with item boxes prepended (so that collisions 
         // work for them even in other rooms and they're rendered on top)
-        return [this.game.leftHandItemBox, this.game.rightHandItemBox].concat(this.game.ecs.entities.filter(entity => {
-            if (!this.game.ecs.hasComponent(entity, components.PositionComponent)) return false;
-            return Vec.equal(
-                this.game.ecs.getComponent(entity, components.PositionComponent).room,
-                this.pos
-            );
-        }));
+        return [this.game.leftHandItemBox, this.game.rightHandItemBox].concat(
+            this.game.ecs.entities.filter(entity => {
+                if (!this.game.ecs.hasComponent(entity, components.PositionComponent)) {
+                    return false;
+                }
+
+                return Vec.equal(
+                    this.game.ecs.getComponent(entity, components.PositionComponent).room,
+                    this.pos
+                );
+            })
+        );
     }
 }

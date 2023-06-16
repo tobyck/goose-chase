@@ -2,13 +2,14 @@
  * engine/ecs.ts
  *
  * This file implements a framework for the ECS to built with.
- * Entities are simply stored as numbers representing their ID; and components
+ * Entities are simply stored as numbers representing their ID, and components
  * are tied to them through ComponentManager objects (one for each type
  * of component). Systems are functions which act upon entities with certain
  * components, and are all managed by a SystemManager object. All of these
  * things are wrapped in the ECS class which is used by the game object.
  */
 
+import { isHidden } from "../helpers";
 import type Game from "../main";
 import { type Room } from "./room";
 
@@ -44,7 +45,8 @@ export enum SystemTrigger {
     Keyboard, // keydown and keyup
     KeyUp, // keyup only
     Click,
-    RightClick
+    RightClick,
+    Hit
 }
 
 /* 
@@ -58,9 +60,9 @@ export enum SystemTrigger {
 type SystemFunc = (game: Game, enity: Entity) => void;
 
 export abstract class System {
-    requiredComponents: Component[] = [];
-    trigger: SystemTrigger;
-    update: SystemFunc;
+    requiredComponents: Component[] = []; // what components an entity must have to be updated
+    trigger: SystemTrigger; // when the system should update
+    update: SystemFunc; // the function to run when the system is triggered
 
     constructor(
         requiredComponents: Component[],
@@ -95,22 +97,23 @@ export class SystemManager {
 
         // for each system with the specified trigger
         for (const system of systems) {
-            for (
+            for ( // for each entity with the required components
                 const entity of this.game.ecs.entitiesWithComponents(
-                    this.game.currentRoom,
+                    this.game.roomAt(this.game.playerRoomPos),
                     system.requiredComponents
                 )
-            ) {
-                system.update(this.game, entity);
-            }
+            ) system.update(this.game, entity);
         }
     }
 }
 
-// container to hold all ECS related data and useful methods for accessing them
+// generic type which creates a constructor type for a class
+type Constructor<T> = new (...args: any[]) => T;
+
+// container to hold all ECS related data and useful methods for accessing/manipulating them
 
 export class ECS {
-    entities: Entity[] = [];
+    #entities: Entity[] = [];
     componentManagers = new Map<Component, ComponentManager<any>>();
     systemManager: SystemManager;
 
@@ -118,24 +121,28 @@ export class ECS {
         this.systemManager = new SystemManager(game);
     }
 
+    get entities(): Entity[] {
+        return this.#entities.filter(entity => !isHidden(this, entity));
+    }
+
     // add an entity with a unique ID
     createEntity(): Entity {
-        let entityId = this.entities.length;
+        let entityId = this.#entities.length;
 
         // find the next available entity ID if the current one is taken
-        while (this.entities.includes(entityId)) {
+        while (this.#entities.includes(entityId)) {
             entityId++;
         }
 
         // add the entity to the list of entities
-        this.entities.push(entityId);
+        this.#entities.push(entityId);
 
         return entityId;
     }
 
     // remove an entity and all of its components
     removeEntity(entity: Entity): void {
-        this.entities.splice(this.entities.indexOf(entity), 1);
+        this.#entities.splice(this.#entities.indexOf(entity), 1);
         for (const componentManager of this.componentManagers.values()) {
             if (componentManager.components[entity]) {
                 componentManager.removeComponent(entity);
@@ -145,15 +152,15 @@ export class ECS {
 
     // brings an entity to the end of the list of entities so it's rendered on top
     bringToFront(entity: Entity): void {
-        this.entities.splice(this.entities.indexOf(entity), 1);
-        this.entities.push(entity);
+        this.#entities.splice(this.#entities.indexOf(entity), 1);
+        this.#entities.push(entity);
     }
 
     hasComponent(entity: Entity, component: Component): boolean {
         return this.componentManagers.get(component)?.getComponent(entity) !== undefined;
     }
 
-    addComponent<T extends new (...args: any[]) => Component>(
+    addComponent<T extends Constructor<Component>>(
         entity: Entity,
         component: T,
         args = <ConstructorParameters<T>>[]
@@ -169,11 +176,17 @@ export class ECS {
 
     getComponent<T extends Component>(
         entity: Entity,
-        component: new (...args: any[]) => T
+        component: Constructor<T>
     ): T {
         return this.componentManagers
             .get(component)
             .getComponent(entity);
+    }
+
+    removeComponent(entity: Entity, component: Component): void {
+        this.componentManagers
+            .get(component)
+            .removeComponent(entity);
     }
 
     entitiesWithComponents(room: Room, components: Component[]): Entity[] {
@@ -187,6 +200,8 @@ export class ECS {
                 // if the entity doesn't have a required component it shouldn't be added to the list
                 if (!this.hasComponent(entity, component)) {
                     hasComponents = false;
+
+                    // no need to check for any more components if one is missing
                     break;
                 }
             }

@@ -6,8 +6,10 @@
  * if it's just a flag to indicate that an entity has a certain capability.
  */
 
-import { Component, type Entity } from "./engine/ecs";
-import { Rect, Vec } from "./helpers";
+import { Component, SystemTrigger, type Entity } from "./engine/ecs";
+import { Particle } from "./engine/particle";
+import { randInt, Rect, Vec } from "./helpers";
+import Game from "./main";
 
 export class PositionComponent implements Component {
     pixels: Vec;
@@ -36,7 +38,7 @@ export class ImageComponent implements Component {
     dest: Vec;
 
     // time when the frame was last changed
-    lastFrameChange = Date.now();
+    timeOflastFrameChange = 0;
 
     constructor(image: CanvasImageSource, frame: Rect, dest?: Vec) {
         this.image = image;
@@ -134,9 +136,15 @@ export class HealthComponent implements Component {
     health: number;
     maxHealth: number;
 
-    constructor(maxHealth: number) {
+    // used for the code that kills the entity when health reaches 0
+    #game: Game;
+    #entity: Entity;
+
+    constructor(maxHealth: number, game: Game, entity: Entity) {
         this.health = maxHealth;
         this.maxHealth = maxHealth;
+        this.#game = game;
+        this.#entity = entity;
     }
 
     heal(amount: number): void {
@@ -146,9 +154,37 @@ export class HealthComponent implements Component {
 
     damage(amount: number): void {
         this.health = Math.max(this.health - amount, 0);
+
         if (this.health === 0) {
-            // entity is dead
-            // implement death here
+            if (this.#entity === this.#game.player) {
+                // game over
+            } else {
+                if (this.#game.ecs.hasComponent(this.#entity, ParticleColorComponent)) {
+                    Particle.createBurst(
+                        this.#game,
+                        17,
+                        17,
+                        this.#game.ecs
+                            .getComponent(this.#entity, PositionComponent)
+                            .getCentre(this.#game.tileSize),
+                        0.08,
+                        0.997,
+                        this.#game.ecs.getComponent(this.#entity, ParticleColorComponent).color,
+                    );
+                }
+
+                if (this.#game.ecs.hasComponent(this.#entity, RespawnableComponent)) {
+                    this.#game.ecs.addComponent(this.#entity, HiddenComponent);
+
+                    const respawnable = this.#game.ecs.getComponent(this.#entity, RespawnableComponent);
+                    respawnable.timeOfDeath = performance.now();
+                    respawnable.timeUntilRespawn = randInt(...respawnable.timeUntilRespawnRange);
+
+                    this.#game.toRespawn.push(this.#entity);
+                } else {
+                    this.#game.ecs.removeEntity(this.#entity);
+                }
+            }
         }
     }
 }
@@ -181,6 +217,65 @@ export class ControllableComponent implements Component {
     sneaking = false;
 }
 
-// these components don't need data, they're just flags
-export class WalkingComponent implements Component { } // entity can walk
-export class HoldableComponent implements Component { } // entity can be picked up
+export class WalkingComponent implements Component {
+    canGetTired: boolean;
+
+    constructor(canGetTired: boolean) {
+        this.canGetTired = canGetTired;
+    }
+}
+
+export class HoldableComponent implements Component { }
+
+export class FollowComponent implements Component {
+    target: Entity; // the entity to follow
+    maxTiles: number; // how close the target has to be before the entity starts following
+
+    randomWalkAngle = Math.random() * Math.PI * 2; // random angle to walk in when the target is too far away
+    timeOflastAngleChange = 0; // time when the random walk angle was last changed
+
+    constructor(target: Entity, maxTiles: number) {
+        this.target = target;
+        this.maxTiles = maxTiles;
+    }
+}
+
+export class ParticleColorComponent implements Component {
+    color: string;
+
+    constructor(color: string) {
+        this.color = color;
+    }
+}
+
+export class HiddenComponent implements Component {
+    shouldUpdate;
+
+    constructor(shouldUpdate: boolean) {
+        this.shouldUpdate = shouldUpdate;
+    }
+}
+
+export class RespawnableComponent implements Component {
+    timeOfDeath: number;
+    timeUntilRespawn: number;
+    readonly timeUntilRespawnRange: [number, number];
+
+    constructor(timeUntilRespawnRange: [number, number]) {
+        this.timeUntilRespawnRange = timeUntilRespawnRange;
+    }
+}
+
+export class HunterComponent implements Component {
+    target: Entity; // entity to hunt
+
+    timeOfLastHit = 0; // time since the hunter last hit the target
+    timeUntilNextHit = 0;
+    readonly timeBetweenHitsRange: [number, number]; // in milliseconds
+
+
+    constructor(target: Entity, timeBetweenHitsRange: [number, number]) {
+        this.target = target;
+        this.timeBetweenHitsRange = timeBetweenHitsRange;
+    }
+}

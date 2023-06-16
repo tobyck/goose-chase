@@ -2,21 +2,19 @@
  * systems/controllable.ts
  *
  * This system is responsible for adjusting the horizontal and vertical speed
- * (stored in the speed component) of controllable entities based on keynoard
- * input, and moving the entity between rooms when it goes through a door. 
- * The system doesn't actually move the entity - that's done by the walking 
- * system in walking.ts.
+ * (stored in the speed component) of controllable entities based on keyboard
+ * input. The system doesn't actually move the entity - that's done by the 
+ * walking system in walking.ts.
  */
 
 import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
 
-export class ControllableSystem extends System {
+export default class ControllableSystem extends System {
     constructor() {
         super([
             components.ControllableComponent,
-            components.SpeedComponent,
-            components.PositionComponent
+            components.SpeedComponent
         ], SystemTrigger.Keyboard, (game, entity) => {
             // get components
             const speed = game.ecs.getComponent(entity, components.SpeedComponent);
@@ -46,19 +44,19 @@ export class ControllableSystem extends System {
                 speed.speedY = 0;
             }
 
-            // use shift key to sneak
-
-            // at the moment this does nothing, but once enemies are 
-            // added it will make it harder for them to find you
-
+            // use shift key to sneak (reduce speed but makes it harder for enemies to detect you)
             if (game.keys["shift"]) {
-                // halve the speed
-                speed.speedX /= 2;
-                speed.speedY /= 2;
+                // reduce speed
+                speed.speedX /= 3;
+                speed.speedY /= 3;
 
                 // let the ControllableComponent know that the entity is sneaking
-                const ControllableComponent = game.ecs.getComponent(entity, components.ControllableComponent);
-                ControllableComponent.sneaking = true;
+                const controllableComponent = game.ecs.getComponent(
+                    entity,
+                    components.ControllableComponent
+                );
+
+                controllableComponent.sneaking = true;
             }
         });
     }

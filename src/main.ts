@@ -2,56 +2,74 @@
  * main.ts
  *
  * This file contains the Game class which is a wrapper for everything
- * in the game and will be re-instantiated with each level. The Game class's 
- * constructor is also responsible for loading images and starting the gameLoop.
- * In the gameLoop, the canvas is cleared then the room's render function
- * handles rendering of room.
+ * in the game and will be re-instantiated with each level.
  */
 
 import * as components from "./components";
-import { ControllableSystem } from "./systems/controllable";
+
+// systems
+import ControllableSystem from "./systems/controllable";
+import WalkingSystem from "./systems/walking";
+import RenderSystem from "./systems/render";
+import PlaceSystem from "./systems/place";
+import KeyUpSystem from "./systems/keyup";
+import HealthBarSystem from "./systems/health_bar";
+import WeaponSystem from "./systems/weapon";
+import Followsystem from "./systems/follow";
+import ClickSystem from "./systems/click";
+import ParticleSystem from "./systems/particles";
+
+// imports from the engine
+import { Asset, AssetLoader, Assets, AssetType } from "./engine/asset_loader";
 import { ECS, type Entity, SystemTrigger } from "./engine/ecs";
-import { generateMap } from "./engine/map_gen";
+import { addEntities } from "./entity_gen";
 import { Room } from "./engine/room";
-import { RenderSystem } from "./systems/render";
+import { Particle } from "./engine/particle";
+
+// misc imports
+import { newPlayerEntity } from "./templates/player";
+import { generateMap } from "./map_gen";
 import { Rect, Vec } from "./helpers";
-import { WalkingSystem } from "./systems/walking";
-import { HitSystem } from "./systems/hit";
-import { PlaceSystem } from "./systems/place";
-import { KeyUpSystem } from "./systems/keyup";
-import { HealthBarSystem } from "./systems/health_bar";
-import { addItems } from "./engine/item_gen";
-import { WeaponSystem } from "./systems/weapon";
-import { AssetLoader, AssetType } from "./engine/asset_loader";
+import RespawnSystem from "./systems/respawn";
+import HuntSystem from "./systems/hunt";
 
 export default class Game {
-    canvas: HTMLCanvasElement;
-    ctx: CanvasRenderingContext2D;
+    readonly canvas: HTMLCanvasElement;
+    readonly ctx: CanvasRenderingContext2D;
 
-    ecs = new ECS(this);
+    readonly level: number;
 
-    player: Entity;
+    readonly assets: Assets;
 
-    assets: typeof AssetLoader.prototype.assets;
+    readonly ecs = new ECS(this);
 
-    level: number;
+    readonly player: Entity;
 
-    leftHandItemBox: Entity;
-    rightHandItemBox: Entity;
+    toRespawn: Entity[] = [];
 
-    leftHandItemPos: Vec;
-    rightHandItemPos: Vec;
+    particles: Particle[] = [];
+
+    // maximum distance (in tiles) that an entity can be from the entity it wants to hit
+    readonly minHitDist = 1.7;
+
+    currentFrameRate: number;
+    timeOfLastFrame = 0;
+
+    readonly leftHandItemBox: Entity;
+    readonly rightHandItemBox: Entity;
+    readonly leftHandItemPos: Vec;
+    readonly rightHandItemPos: Vec;
 
     keys: { [key: string]: boolean } = {};
+    keyReleased: string;
     lastClickPos: Vec;
 
-    tileSize: number; // width of a tile in pixels
-    roomCount: Vec; // amount of rooms
-    roomSize: Vec; // amount of tiles
-    rooms: Room[]; // flat list of rooms (pos stored in each room object)
-    room: Vec; // vector representing which room the player is in
+    readonly tileSize: number; // width of a tile in pixels
+    readonly roomCount: Vec; // amount of rooms
+    readonly roomSize: Vec; // amount of tiles
+    readonly rooms: Room[]; // flat list of rooms (pos stored in each room object)
 
-    constructor(canvas: HTMLCanvasElement, level: number, assets: typeof AssetLoader.prototype.assets) {
+    constructor(canvas: HTMLCanvasElement, level: number, assets: Assets) {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
 
@@ -65,8 +83,10 @@ export default class Game {
         });
 
         document.addEventListener("keyup", event => {
+            const key = event.key.toLowerCase();
+            this.keyReleased = key;
             this.ecs.systemManager.updateSystems(SystemTrigger.KeyUp);
-            delete this.keys[event.key.toLowerCase()];
+            delete this.keys[key];
             this.ecs.systemManager.updateSystems(SystemTrigger.Keyboard);
         });
 
@@ -100,13 +120,6 @@ export default class Game {
 
         if (level % 2 === 0) this.roomCount.x++;
 
-        // put the character in the middle of the map
-
-        this.room = new Vec(
-            Math.floor(this.roomCount.x / 2),
-            Math.floor(this.roomCount.y / 2)
-        );
-
         // size the rooms to have a roughly even number of tiles with different aspect ratios
 
         this.roomSize = new Vec(null, null);
@@ -123,6 +136,13 @@ export default class Game {
 
         this.ctx.imageSmoothingEnabled = false;
 
+        // add the player in the middle of the room
+
+        this.player = newPlayerEntity(this, new Vec(
+            (this.roomSize.x / 2 - .5) * this.tileSize,
+            (this.roomSize.y / 2 - .5) * this.tileSize
+        ));
+
         // add boxes to show items held by the player
 
         [this.leftHandItemBox, this.leftHandItemPos] = this.addItemBox(new Vec(
@@ -135,57 +155,45 @@ export default class Game {
             (this.roomSize.y - 4) * this.tileSize
         ));
 
-        // add the player
-
-        this.player = this.ecs.createEntity();
-
-        this.ecs.addComponent(this.player, components.ImageComponent, [
-            this.getImage("player"),
-            new Rect(0, 0, 16, 16)
-        ]);
-
-        // put the player in the middle of the room
-        this.ecs.addComponent(this.player, components.PositionComponent, [
-            new Vec(
-                (this.roomSize.x / 2 - .5) * this.tileSize,
-                (this.roomSize.y / 2 - .5) * this.tileSize
-            ),
-            this.room
-        ]);
-
-        this.ecs.addComponent(this.player, components.SpeedComponent, [this.tileSize / 28]); // move 1/20 of a tile per frame
-        this.ecs.addComponent(this.player, components.WalkingComponent);
-        this.ecs.addComponent(this.player, components.ControllableComponent);
-        this.ecs.addComponent(this.player, components.HandsComponent, [null, null]);
-        this.ecs.addComponent(this.player, components.HealthComponent, [100]);
-        this.ecs.addComponent(this.player, components.HitboxComponent, [Rect.fromVecs(
-            new Vec(2, 0).scaled(16, this.tileSize).shifted(new Vec(0, 2)),
-            new Vec(12, 16).scaled(16, this.tileSize).shifted(new Vec(0, -2))
-        )]);
-
         // generate the rooms using the function in mapgen.ts
 
         this.rooms = generateMap(this);
 
         // add items to the rooms
 
-        addItems(this);
+        addEntities(this);
 
-        // bring the player to the front so they are drawn on top of everything else
-        // (this is so that items without hitboxes will be drawn behind the player)
-
-        this.ecs.bringToFront(this.player);
+        for (const room of this.rooms) { // for each room
+            // bring all walking entities to the front
+            this.ecs.entitiesWithComponents(room, [components.WalkingComponent])
+                .forEach(this.ecs.bringToFront, this.ecs);
+        }
 
         // add systems
 
-        this.ecs.systemManager.addSystem(new ControllableSystem());
-        this.ecs.systemManager.addSystem(new WalkingSystem());
-        this.ecs.systemManager.addSystem(new HitSystem());
-        this.ecs.systemManager.addSystem(new PlaceSystem());
-        this.ecs.systemManager.addSystem(new KeyUpSystem());
-        this.ecs.systemManager.addSystem(new RenderSystem());
-        this.ecs.systemManager.addSystem(new HealthBarSystem());
-        this.ecs.systemManager.addSystem(new WeaponSystem());
+        [
+            // systems that set speeds
+            ControllableSystem,
+            Followsystem,
+
+            // system that moves them
+            WalkingSystem,
+
+            // input systems
+            ClickSystem,
+            KeyUpSystem,
+            PlaceSystem,
+
+            // misc systems
+            RespawnSystem,
+            HuntSystem,
+
+            // systems that render things
+            RenderSystem,
+            HealthBarSystem,
+            WeaponSystem,
+            ParticleSystem
+        ].forEach(system => this.ecs.systemManager.addSystem(new system()));
 
         // start music loop
     }
@@ -212,7 +220,7 @@ export default class Game {
         ]);
 
         this.ecs.addComponent(itemBox, components.PositionComponent, [
-            pos, this.room
+            pos, this.playerRoomPos
         ]);
 
         this.ecs.addComponent(itemBox, components.HitboxComponent, [Rect.fromVecs(
@@ -225,21 +233,29 @@ export default class Game {
 
     // re-render the whole game every frame using requestAnimationFrame
 
-    tick() {
-        // find the current room and render 
-        this.currentRoom.render();
+    tick(timestamp: number) {
+        this.currentFrameRate = 1000 / (timestamp - this.timeOfLastFrame);
+        this.timeOfLastFrame = timestamp;
 
-        // update all systems triggerd by rendering
-        this.ecs.systemManager.updateSystems(SystemTrigger.Tick);
+        // pause the game if the window is not focused (e.g. on another tab)
+        if (document.hasFocus()) {
+            // find the current room and render 
+            this.roomAt(this.playerRoomPos).render();
+
+            // update all systems triggerd by rendering
+            this.ecs.systemManager.updateSystems(SystemTrigger.Tick);
+        }
 
         // request the next frame
-        requestAnimationFrame(() => this.tick());
+        requestAnimationFrame(timestamp => this.tick(timestamp));
     }
 
-    // getter function to find the current room
+    get playerRoomPos(): Vec {
+        return this.ecs.getComponent(this.player, components.PositionComponent).room;
+    }
 
-    get currentRoom() {
-        return this.rooms.find(room => Vec.equal(room.pos, this.room));
+    roomAt(pos: Vec) {
+        return this.rooms.find(room => Vec.equal(room.pos, pos));
     }
 
     getAsset(name: string) {
@@ -261,13 +277,12 @@ export default class Game {
     }
 }
 
-type Asset = HTMLImageElement | HTMLAudioElement;
-
 const assetLoader = new AssetLoader([
     { type: AssetType.Image, path: "assets/images/tiles.png" },
     { type: AssetType.Image, path: "assets/images/player.png" },
     { type: AssetType.Image, path: "assets/images/items.png" },
     { type: AssetType.Image, path: "assets/images/item_box.png" },
+    { type: AssetType.Image, path: "assets/images/zombie.png" },
     { type: AssetType.Audio, path: "assets/sounds/music.mp3" },
     { type: AssetType.Audio, path: "assets/sounds/footstep.mp3" },
     { type: AssetType.Audio, path: "assets/sounds/pick_up.mp3" },
@@ -276,10 +291,8 @@ const assetLoader = new AssetLoader([
     { type: AssetType.Audio, path: "assets/sounds/decline.mp3" },
 ]);
 
-assetLoader.loadAll().then(assets => { // once all assets are loaded
-    // initialize game object
-    const game = new Game(document.querySelector("canvas"), 4, assets);
-
-    // start the game loop
-    game.tick();
-});
+(async () => {
+    const assets = await assetLoader.loadAll();
+    const game = new Game(document.querySelector("canvas"), 2, assets);
+    game.tick(0);
+})();

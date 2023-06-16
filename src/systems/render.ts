@@ -2,15 +2,15 @@
  * systems/render.ts
  *
  * The system responsible for rendering every single entity in the game.
- * Properties of the image component can be changed in other 
- * systems to create animations, because this systems renders whichever 
- * part of the image is specified in the component at the time of rendering.
+ * Properties of the image component can be changed in other systems to create 
+ * animations, because this systems renders whichever part of the image is 
+ * specified in the component at the time of rendering.
  */
 
 import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
 
-export class RenderSystem extends System {
+export default class RenderSystem extends System {
     constructor() {
         super([
             components.PositionComponent,
@@ -38,8 +38,11 @@ export class RenderSystem extends System {
                 const hitbox = game.ecs.getComponent(entity, components.HitboxComponent)
                     .getActualHitbox(positionComponent);
 
-                game.ctx.strokeStyle = "#ff2222";
+                game.ctx.strokeStyle = "#ff2222"; // red
+
+                // set line width to 1/90th of a tile
                 game.ctx.lineWidth = Math.ceil(game.tileSize / 90);
+
                 game.ctx.strokeRect(
                     hitbox.x,
                     hitbox.y,
