@@ -1,0 +1,159 @@
+@font-face {
+    font-family: "VT323";
+    src: url("https://fonts.gstatic.com/s/vt323/v17/pxiKyp0ihIEF2isfFJXUdVNF.woff2") format("woff2");
+}
+
+/* make everything behind the canvas black */
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #111;
+}
+
+* {
+    font-family: "VT323", monospace;
+    color: white;
+}
+
+/* centre the canvas */
+
+canvas {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* general class to centre elements */
+
+.centre {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* loading screen */
+
+.loading .text {
+    font-size: 7vh;
+    margin: 4vh;
+}
+
+.loading .outer {
+    height: 4vh;
+    border: .3vh solid white;
+    border-radius: calc(4vh / 4);
+}
+
+.loading .inner {
+    width: 0;
+    height: 3vh;
+    position: relative;
+    top: 50%;
+    left: .5vh;
+    transform: translateY(-52%);
+    border-radius: calc(2vh / 4);
+    background-color: white;
+    transition: width 1s ease-in-out;
+}
+
+/* menu screen */
+
+h1 {
+    text-align: center;
+    font-size: 10vh;
+    margin: 3vh;
+}
+
+.sub-container {
+    background-color: #222;
+    padding: 4vh;
+    width: 60vh;
+    border-radius: 2vh;
+    display: flex;
+    flex-direction: column;
+    gap: 1vh;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.sub-container * {
+    font-size: 5vh;
+}
+
+.menu .item {
+    margin: .5vh;
+    display: flex;
+    justify-content: space-between;
+}
+
+.level-selector {
+    width: 14vh;
+    display: flex;
+    justify-content: space-between;
+}
+
+.level-selector button, .switch {
+    background-color: transparent;
+    border: none;
+    transition: color .2s ease;
+}
+
+.level-selector button:hover, .switch:hover {
+    color: #bbb;
+}
+
+button:not(:disabled) {
+    cursor: pointer;
+}
+
+.level-selector button:disabled {
+    color: #666;
+}
+
+.level {
+    user-select: none;
+}
+
+.blocky-button {
+    background-color: #666;
+    border: none;
+    border-radius: 1vh;
+    font-size: 4vh;
+    padding: 1vh 2vh 1vh 2vh;
+    justify-self: right;
+    margin-top: 3vh;
+    transition: background-color .2s ease-in-out;
+}
+
+.blocky-button:hover {
+    background-color: #888;
+}
+
+.blocky-button:disabled {
+    background-color: #333;
+    color: #666;
+}
+
+.help-button a {
+    text-decoration: none;
+    font-size: 4vh;
+}
+
+/* game over/paused screen */
+
+.game-stopped .message {
+    text-align: center;
+}
+
+.game-stopped .buttons {
+    display: flex;
+    justify-content: space-between;
+}
+
+.game-stopped .sub-container {
+    width: 40vh;
+}

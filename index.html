@@ -4,26 +4,63 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
     <title>Goose Chase</title>
 </head>
-<style>
-    /* make everything behind the canvas black */
-    body {
-        margin: 0;
-        overflow: hidden;
-        background-color: #111;
-    }
-
-    /* centre the canvas */
-    canvas {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-    }
-</style>
 <body>
-    <canvas></canvas>
+    <div class="loading centre" hidden>
+        <p class="text">Loading...</p>
+        <div class="outer">
+            <div class="inner"></div>
+        </div>
+    </div>
+
+    <div class="menu centre" hidden>
+        <h1>Goose Chase</h1>
+        <div class="sub-container">
+            <div class="item">
+                Level:
+                <div class="level-selector">
+                    <button>&lt;</button>
+                    <span class="level">1</span>
+                    <button>&gt;</button>
+                </div>
+            </div>
+            <div class="item">
+                Personal best:
+                <span class="personal-best">N/A</span>
+            </div>
+            <div class="item">
+                Previous time:
+                <span class="previous-time">N/A</span>
+            </div>
+            <div class="item">
+                Music:
+                <button class="music switch">ON</button>
+            </div>
+            <div class="item">
+                SFX:
+                <button class="sfx switch">ON</button>
+            </div>
+            <div class="item">
+                <button class="help-button blocky-button"><a href="https://github.com/tobyck/goose-chase#readme" target="_blank">Help</a></button>
+                <button class="play-button blocky-button">Play &gt;</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-stopped centre" hidden>
+        <h1>Goose Chase</h1>
+        <div class="sub-container">
+            <div class="message">Game Over</div>
+            <div class="buttons">
+                <button class="menu-button blocky-button">&lt; Menu</button>
+                <button class="resume-button blocky-button">Resume &gt;</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas hidden></canvas>
 </body>
-<script src="build/main.js"></script>
+<script src="build/bundle.js"></script>
 </html>

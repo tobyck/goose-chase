@@ -9,7 +9,8 @@
 import { Component, type Entity } from "./engine/ecs";
 import { Particle } from "./engine/particle";
 import { randInt, Rect, Vec } from "./helpers";
-import Game from "./main";
+import Game from "./game";
+import { showGameStoppedScreen } from "./gui";
 
 export class PositionComponent implements Component {
     pixels: Vec;
@@ -157,9 +158,10 @@ export class HealthComponent implements Component {
 
         if (this.health === 0) {
             if (this.#entity === this.#game.player) {
-                // game over
+                showGameStoppedScreen("Game Over", "Menu", false);
+                this.#game.paused = true;
             } else {
-                if (this.#game.ecs.hasComponent(this.#entity, ParticleColorComponent)) {
+                if (this.#game.ecs.hasComponent(this.#entity, ParticleColourComponent)) {
                     Particle.createBurst(
                         this.#game,
                         17,
@@ -169,7 +171,7 @@ export class HealthComponent implements Component {
                             .getCentre(this.#game.tileSize),
                         0.08,
                         0.997,
-                        this.#game.ecs.getComponent(this.#entity, ParticleColorComponent).color,
+                        this.#game.ecs.getComponent(this.#entity, ParticleColourComponent).colour,
                     );
                 }
 
@@ -240,11 +242,11 @@ export class FollowComponent implements Component {
     }
 }
 
-export class ParticleColorComponent implements Component {
-    color: string;
+export class ParticleColourComponent implements Component {
+    colour: string;
 
-    constructor(color: string) {
-        this.color = color;
+    constructor(colour: string) {
+        this.colour = colour;
     }
 }
 

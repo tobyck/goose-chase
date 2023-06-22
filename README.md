@@ -8,13 +8,14 @@ Have a look at the Controls section below, then try it out on [tobyck.tech/goose
 
 | Input           | Action              |
 | --------------- | ------------------- |
-| WASD/Arrow Keys | Move                |
+| WASD/Arrow keys | Move                |
 | Click           | Attack/pick up item |
 | Right click     | Place item          |
 | Shift           | Sneak               |
 | Q               | Drop item           |
 | F               | Switch hands        |
 | H               | Show hitboxes       |
+| Esc/P           | Pause               |
 
 ## Credits
 

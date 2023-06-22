@@ -1,7 +1,7 @@
 import * as components from "../components";
 import { Entity } from "../engine/ecs";
 import { Rect, Vec } from "../helpers";
-import Game from "../main";
+import Game from "../game";
 
 export const newPlayerEntity = (game: Game, pos: Vec): Entity => {
     const player = game.ecs.createEntity();

@@ -9,7 +9,7 @@
  */
 
 import * as components from "../components";
-import type Game from "../main";
+import type Game from "../game";
 import { Vec } from "../helpers";
 
 // an enum to represent the possible floor tiles

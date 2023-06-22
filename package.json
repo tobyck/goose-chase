@@ -3,7 +3,8 @@
   "author": "Toby Connor-Kebbell",
   "version": "0.0.0",
   "license": "MIT",
-  "source": "src/main.ts",
+  "source": "src/gui.ts",
+  "bundle": "build/bundle.js",
   "targets": {
     "bundle": {
       "sourceMap": false,

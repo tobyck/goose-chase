@@ -1,7 +1,7 @@
 import * as components from "./components";
 import { Entity } from "./engine/ecs";
 import { Vec, cloneAudio } from "./helpers";
-import Game from "./main";
+import Game from "./game";
 
 export const hit = (game: Game, hitter: Entity, entityToHit: Entity) => {
     const hands = game.ecs.getComponent(hitter, components.HandsComponent);
@@ -51,7 +51,7 @@ export const hit = (game: Game, hitter: Entity, entityToHit: Entity) => {
                         ? game.leftHandItemPos
                         : game.rightHandItemPos;
                 } else {
-                    // TODO: use HiddenComponent instead
+                    // TODO: Use HiddenComponent instead. It's fine at the moment because only the player can pick up items
                     itemPosComponent.pixels = new Vec(0, 0);
                 }
 
@@ -61,9 +61,9 @@ export const hit = (game: Game, hitter: Entity, entityToHit: Entity) => {
                     components.PositionComponent
                 ).room;
 
-                cloneAudio(game.getAudio("pick_up")).play();
+                if (game.shouldPlaySFX) cloneAudio(game.getAudio("pick_up")).play();
             } else {
-                cloneAudio(game.getAudio("decline")).play();
+                if (game.shouldPlaySFX) cloneAudio(game.getAudio("decline")).play();
             }
             // if it's not something to pick up, check that there's a weapon and that the entity has health, then hit it
         } else if (weaponEntity && game.ecs.hasComponent(entityToHit, components.HealthComponent)) {

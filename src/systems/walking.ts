@@ -51,11 +51,23 @@ export default class WalkingSystem extends System {
                     image.frame.x %= 64; // wrap around to the first frame if at the end
                     image.timeOflastFrameChange = performance.now();
 
-                    if (image.frame.x === 16 || image.frame.x === 48) {
+                    if ((image.frame.x === 16 || image.frame.x === 48) && game.shouldPlaySFX) {
                         const clone = cloneAudio(game.getAudio("footstep"));
-                        clone.volume *= .7; // quieten footsteps a bit
+
+                        clone.volume *= .5; // quieten footsteps a bit
+
+                        if (entity !== game.player) {
+                            clone.volume *= .5; // quieten footsteps more if not the player
+                        }
+
                         // reduce volume based on speed (so the faster you go, the louder the footsteps)
                         clone.volume *= speed.currentVelocity / speed.velocity;
+
+                        // reduce volume based on distance from player
+                        const playerPos = game.ecs.getComponent(game.player, components.PositionComponent);
+                        const distance = playerPos.pixels.distTo(position.pixels);
+                        clone.volume *= Math.max(1 - (distance / (game.roomSize.x * game.tileSize)), 0);
+
                         clone.play();
                     }
                 }

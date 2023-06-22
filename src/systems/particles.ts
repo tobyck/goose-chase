@@ -21,7 +21,7 @@ export default class ParticleSystem extends System {
 
                 // render particle
 
-                game.ctx.fillStyle = particle.color;
+                game.ctx.fillStyle = particle.colour;
 
                 game.ctx.fillRect(
                     particle.pos.x,

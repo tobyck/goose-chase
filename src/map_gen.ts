@@ -7,7 +7,7 @@
  */
 
 import * as components from "./components";
-import type Game from "./main";
+import type Game from "./game";
 import { randInt, Rect, Vec } from "./helpers";
 import { Room } from "./engine/room";
 

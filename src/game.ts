@@ -20,7 +20,7 @@ import ClickSystem from "./systems/click";
 import ParticleSystem from "./systems/particles";
 
 // imports from the engine
-import { Asset, AssetLoader, Assets, AssetType } from "./engine/asset_loader";
+import { Asset, Assets } from "./engine/asset_loader";
 import { ECS, type Entity, SystemTrigger } from "./engine/ecs";
 import { addEntities } from "./entity_gen";
 import { Room } from "./engine/room";
@@ -32,17 +32,28 @@ import { generateMap } from "./map_gen";
 import { Rect, Vec } from "./helpers";
 import RespawnSystem from "./systems/respawn";
 import HuntSystem from "./systems/hunt";
+import { showGameStoppedScreen } from "./gui";
+
+type EventHandler = (event?: Event) => void;
 
 export default class Game {
+    static maxLevel = 15;
+
     readonly canvas: HTMLCanvasElement;
     readonly ctx: CanvasRenderingContext2D;
 
-    readonly level: number;
+    shouldPlayMusic: boolean;
+    shouldPlaySFX: boolean;
+
+    startTime: number;
+
+    paused = false;
+
+    eventListeners: Record<string, EventHandler> = {};
 
     readonly assets: Assets;
-
+    readonly level: number;
     readonly ecs = new ECS(this);
-
     readonly player: Entity;
 
     toRespawn: Entity[] = [];
@@ -69,43 +80,20 @@ export default class Game {
     readonly roomSize: Vec; // amount of tiles
     readonly rooms: Room[]; // flat list of rooms (pos stored in each room object)
 
-    constructor(canvas: HTMLCanvasElement, level: number, assets: Assets) {
+    constructor(canvas: HTMLCanvasElement, assets: Assets, level: number, shouldPlayMusic: boolean, shouldPlaySFX: boolean) {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
 
-        this.level = level;
+        if (level > 0 && level <= Game.maxLevel) {
+            this.level = level;
+        } else {
+            throw new Error(`Level ${level} does not exist`);
+        }
 
         this.assets = assets;
 
-        document.addEventListener("keydown", event => {
-            this.keys[event.key.toLowerCase()] = true;
-            this.ecs.systemManager.updateSystems(SystemTrigger.Keyboard);
-        });
-
-        document.addEventListener("keyup", event => {
-            const key = event.key.toLowerCase();
-            this.keyReleased = key;
-            this.ecs.systemManager.updateSystems(SystemTrigger.KeyUp);
-            delete this.keys[key];
-            this.ecs.systemManager.updateSystems(SystemTrigger.Keyboard);
-        });
-
-        document.addEventListener("click", event => {
-            this.setLastClickPos(event);
-            this.ecs.systemManager.updateSystems(SystemTrigger.Click);
-
-            // temporary place to start music
-            const music = this.getAudio("music");
-            music.loop = true;
-            music.volume = .5;
-            music.play();
-        });
-
-        document.addEventListener("contextmenu", event => {
-            event.preventDefault(); // prevent context menu from opening
-            this.setLastClickPos(event);
-            this.ecs.systemManager.updateSystems(SystemTrigger.RightClick);
-        });
+        this.shouldPlayMusic = shouldPlayMusic;
+        this.shouldPlaySFX = shouldPlaySFX;
 
         // level 1: 1x1
         // level 2: 2x1
@@ -231,25 +219,6 @@ export default class Game {
         return [itemBox, pos.shifted(new Vec(this.tileSize, this.tileSize))];
     }
 
-    // re-render the whole game every frame using requestAnimationFrame
-
-    tick(timestamp: number) {
-        this.currentFrameRate = 1000 / (timestamp - this.timeOfLastFrame);
-        this.timeOfLastFrame = timestamp;
-
-        // pause the game if the window is not focused (e.g. on another tab)
-        if (document.hasFocus()) {
-            // find the current room and render 
-            this.roomAt(this.playerRoomPos).render();
-
-            // update all systems triggerd by rendering
-            this.ecs.systemManager.updateSystems(SystemTrigger.Tick);
-        }
-
-        // request the next frame
-        requestAnimationFrame(timestamp => this.tick(timestamp));
-    }
-
     get playerRoomPos(): Vec {
         return this.ecs.getComponent(this.player, components.PositionComponent).room;
     }
@@ -275,24 +244,90 @@ export default class Game {
     getAudio(name: string) {
         return this.getAsset(name) as HTMLAudioElement;
     }
+
+    addEventListeners(): Record<string, EventListener> {
+        const listeners = {
+            "blur": this.pause.bind(this),
+            "keydown": event => {
+                const key = event.key.toLowerCase();
+
+                if (key === "p" || key === "escape") {
+                    this.pause();
+                }
+
+                this.keys[key] = true;
+                this.ecs.systemManager.updateSystems(SystemTrigger.Keyboard);
+            },
+            "keyup": event => {
+                const key = event.key.toLowerCase();
+                this.keyReleased = key;
+                this.ecs.systemManager.updateSystems(SystemTrigger.KeyUp);
+                delete this.keys[key];
+                this.ecs.systemManager.updateSystems(SystemTrigger.Keyboard);
+            },
+            "click": event => {
+                this.setLastClickPos(event);
+                this.ecs.systemManager.updateSystems(SystemTrigger.Click);
+            },
+            "contextmenu": event => {
+                event.preventDefault(); // prevent context menu from opening
+                this.setLastClickPos(event);
+                this.ecs.systemManager.updateSystems(SystemTrigger.RightClick);
+            }
+        };
+
+        for (const key in listeners) {
+            document.addEventListener(key, listeners[key]);
+        }
+
+        return listeners;
+    }
+
+    removeEventListeners(): void {
+        Object.entries(this.eventListeners).forEach(([type, listener]) => {
+            document.removeEventListener(type, listener);
+        });
+    }
+
+    start() {
+        this.paused = false;
+        this.eventListeners = this.addEventListeners();
+        this.startTime = performance.now();
+        this.timeOfLastFrame = performance.now();
+        this.tick(performance.now());
+
+        if (this.shouldPlayMusic) {
+            const music = this.getAudio("music");
+            music.loop = true;
+            music.volume = .5; // quiten the music a bit
+            music.play();
+        }
+    }
+
+    pause() {
+        if (!this.paused) {
+            showGameStoppedScreen("Game Paused", "Quit", true);
+            this.removeEventListeners();
+            this.paused = true;
+            this.getAudio("music").pause();
+        }
+    }
+
+    // re-render the whole game every frame using requestAnimationFrame
+
+    tick(timestamp: number) {
+        if (!this.paused) { // stop game loop if paused
+            this.currentFrameRate = 1000 / (timestamp - this.timeOfLastFrame);
+            this.timeOfLastFrame = timestamp;
+
+            // find the current room and render 
+            this.roomAt(this.playerRoomPos).render();
+
+            // update all systems triggerd by rendering
+            this.ecs.systemManager.updateSystems(SystemTrigger.Tick);
+
+            // request the next frame
+            requestAnimationFrame(timestamp => this.tick(timestamp));
+        }
+    }
 }
-
-const assetLoader = new AssetLoader([
-    { type: AssetType.Image, path: "assets/images/tiles.png" },
-    { type: AssetType.Image, path: "assets/images/player.png" },
-    { type: AssetType.Image, path: "assets/images/items.png" },
-    { type: AssetType.Image, path: "assets/images/item_box.png" },
-    { type: AssetType.Image, path: "assets/images/zombie.png" },
-    { type: AssetType.Audio, path: "assets/sounds/music.mp3" },
-    { type: AssetType.Audio, path: "assets/sounds/footstep.mp3" },
-    { type: AssetType.Audio, path: "assets/sounds/pick_up.mp3" },
-    { type: AssetType.Audio, path: "assets/sounds/place.mp3" },
-    { type: AssetType.Audio, path: "assets/sounds/swap_hands.mp3" },
-    { type: AssetType.Audio, path: "assets/sounds/decline.mp3" },
-]);
-
-(async () => {
-    const assets = await assetLoader.loadAll();
-    const game = new Game(document.querySelector("canvas"), 2, assets);
-    game.tick(0);
-})();

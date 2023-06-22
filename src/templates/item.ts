@@ -2,7 +2,7 @@ import * as components from "../components";
 import { Entity } from "../engine/ecs";
 import { Room } from "../engine/room";
 import { Rect, setRandomEntityPos } from "../helpers";
-import Game from "../main";
+import Game from "../game";
 
 export const newItemEntity = (
     game: Game,

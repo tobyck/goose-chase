@@ -10,7 +10,7 @@
  */
 
 import { isHidden } from "../helpers";
-import type Game from "../main";
+import type Game from "../game";
 import { type Room } from "./room";
 
 export type Entity = number;

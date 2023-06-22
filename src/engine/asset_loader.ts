@@ -28,23 +28,39 @@ export interface AssetSource {
 
 export class AssetLoader {
     #sources: AssetSource[] = []; // private because it's not (and shouldn't be) accessible from outside
+    #promises: Promise<Asset>[];
+    #totalResolved = 0;
+    progressBar: HTMLDivElement;
 
-    constructor(sources: AssetSource[]) {
+    constructor(sources: AssetSource[], progressBar: HTMLDivElement) {
         this.#sources = sources;
+        this.progressBar = progressBar;
+    }
+
+    adjustProgressBar() {
+        this.progressBar.style.width = `calc((100% - 1vh) * ${this.#totalResolved / this.#sources.length})`;
     }
 
     // create a promise for a single asset
-    private static loadAsset(asset: AssetSource): Promise<Asset> {
+    private loadAsset(asset: AssetSource): Promise<Asset> {
         return new Promise((resolve, reject) => {
             if (asset.type === AssetType.Image) {
                 const image = new Image();
                 image.src = asset.path;
-                image.onload = () => resolve(image);
+                image.onload = () => {
+                    resolve(image);
+                    this.#totalResolved++;
+                    this.adjustProgressBar();
+                };
                 image.onerror = reject;
             } else if (asset.type === AssetType.Audio) {
                 const audio = new Audio();
                 audio.src = asset.path;
-                audio.oncanplaythrough = () => resolve(audio);
+                audio.oncanplaythrough = () => {
+                    resolve(audio);
+                    this.#totalResolved++;
+                    this.adjustProgressBar();
+                };
                 audio.onerror = reject;
             }
         });
@@ -53,10 +69,13 @@ export class AssetLoader {
     // function which loads all assets from this.#sources
     async loadAll(): Promise<Assets> {
         // get promises for all assets
-        const promises = this.#sources.map(AssetLoader.loadAsset);
+        this.#promises = this.#sources.map(this.loadAsset, this);
 
         // wait for all to load
-        const assets = await Promise.all(promises);
+        const assets = await Promise.all(this.#promises);
+
+        // wait a second for loading bar animation
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         // return all assets in an object which is split into images and audio
         return {

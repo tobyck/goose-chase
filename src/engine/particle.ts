@@ -1,22 +1,22 @@
 import { Vec } from "../helpers";
-import Game from "../main";
+import Game from "../game";
 
 export class Particle {
     pos: Vec;
     angle: number;
     speed: number;
     friction: number;
-    color: string;
+    colour: string;
 
-    constructor(pos: Vec, angle: number, speed: number, friction: number, color: string) {
+    constructor(pos: Vec, angle: number, speed: number, friction: number, colour: string) {
         this.pos = pos;
         this.angle = angle;
         this.speed = speed;
         this.friction = friction;
-        this.color = color;
+        this.colour = colour;
     }
 
-    static createBurst(game: Game, count: number, delay: number, pos: Vec, speed: number, friction: number, color: string) {
+    static createBurst(game: Game, count: number, delay: number, pos: Vec, speed: number, friction: number, colour: string) {
         for (let i = 0; i < count; i++) {
             setTimeout(() => {
                 game.particles.push(new Particle(
@@ -24,7 +24,7 @@ export class Particle {
                     Math.random() * Math.PI * 2, // random angle
                     speed * (.75 + Math.random() * .5), // 75% to 125% of speed
                     friction,
-                    color
+                    colour
                 ));
             }, delay * i);
         }

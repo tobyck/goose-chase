@@ -9,7 +9,7 @@
 
 import * as components from "./components";
 import { randInt, Rect } from "./helpers";
-import type Game from "./main";
+import type Game from "./game";
 import { newItemEntity } from "./templates/item";
 import { newZombieEntity } from "./templates/zombie";
 

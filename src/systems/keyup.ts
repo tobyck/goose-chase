@@ -54,7 +54,7 @@ export default class KeyUpSystem extends System {
                 }
 
                 // play sound effect if any items were swapped
-                if (hands.leftHand || hands.rightHand) {
+                if ((hands.leftHand || hands.rightHand) && game.shouldPlaySFX) {
                     cloneAudio(game.getAudio("swap_hands")).play();
                 }
             }

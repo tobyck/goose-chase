@@ -8,7 +8,7 @@
 import * as components from "./components";
 import { ECS, Entity } from "./engine/ecs";
 import { Room } from "./engine/room";
-import Game from "./main";
+import Game from "./game";
 
 export class Vec {
     x: number;
@@ -204,7 +204,7 @@ export const attemptPlace = (game: Game, hands: components.HandsComponent, pos: 
         game.ecs.entitiesWithComponents(game.roomAt(game.playerRoomPos), [components.WalkingComponent])
             .forEach(game.ecs.bringToFront, game.ecs);
 
-        cloneAudio(game.getAudio("place")).play();
+        if (game.shouldPlaySFX) cloneAudio(game.getAudio("place")).play();
 
         return true;
     }
