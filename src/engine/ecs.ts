@@ -5,11 +5,11 @@
  * Entities are simply stored as numbers representing their ID, and components
  * are tied to them through ComponentManager objects (one for each type
  * of component). Systems are functions which act upon entities with certain
- * components, and are all managed by a SystemManager object. All of these
+ * components, and are all managed by a SystemManager class. All of these
  * things are wrapped in the ECS class which is used by the game object.
  */
 
-import { isHidden } from "../helpers";
+import { isHidden, shouldAlwaysUpdate } from "../helpers";
 import type Game from "../game";
 import { type Room } from "./room";
 
@@ -64,6 +64,8 @@ export abstract class System {
     trigger: SystemTrigger; // when the system should update
     update: SystemFunc; // the function to run when the system is triggered
 
+    ignoreAUC = false; // short for ignore AlwaysUpdateComponent
+
     constructor(
         requiredComponents: Component[],
         trigger: SystemTrigger,
@@ -97,23 +99,38 @@ export class SystemManager {
 
         // for each system with the specified trigger
         for (const system of systems) {
-            for ( // for each entity with the required components
-                const entity of this.game.ecs.entitiesWithComponents(
-                    this.game.roomAt(this.game.playerRoomPos),
-                    system.requiredComponents
-                )
-            ) system.update(this.game, entity);
+            const entitiesToUpdate: Entity[] = [];
+
+            const playerRoom = this.game.roomAt(this.game.playerRoomPos);
+
+            // push all entities in the player's room with the required components
+            entitiesToUpdate.push(...this.game.ecs.entitiesWithComponents(
+                playerRoom,
+                system.requiredComponents
+            ));
+
+            // as long as the system doesn't ignore AlwaysUpdateComponents, push
+            // all entities with the required components and the AlwaysUpdateComponent
+            // that could be in any room
+            if (!system.ignoreAUC) entitiesToUpdate.push(...this.game.ecs.entities.filter(
+                entity => shouldAlwaysUpdate(this.game.ecs, entity) &&
+                    system.requiredComponents.every(
+                        component => this.game.ecs.hasComponent(entity, component)
+                    )
+            ));
+
+            // for each entity with the required components
+            for (const entity of entitiesToUpdate) system.update(this.game, entity);
         }
     }
 }
 
-// generic type which creates a constructor type for a class
+// generic type which creates a type for the contructor of a class
 type Constructor<T> = new (...args: any[]) => T;
 
 // container to hold all ECS related data and useful methods for accessing/manipulating them
-
 export class ECS {
-    #entities: Entity[] = [];
+    #entities: Entity[] = []; // list of all entities including hidden ones
     componentManagers = new Map<Component, ComponentManager<any>>();
     systemManager: SystemManager;
 
@@ -121,6 +138,7 @@ export class ECS {
         this.systemManager = new SystemManager(game);
     }
 
+    // getter to return all entities that aren't hidden
     get entities(): Entity[] {
         return this.#entities.filter(entity => !isHidden(this, entity));
     }
@@ -156,6 +174,7 @@ export class ECS {
         this.#entities.push(entity);
     }
 
+    // checks if an entity has a given component
     hasComponent(entity: Entity, component: Component): boolean {
         return this.componentManagers.get(component)?.getComponent(entity) !== undefined;
     }
@@ -189,6 +208,7 @@ export class ECS {
             .removeComponent(entity);
     }
 
+    // returns all entities in a certain room with the given components
     entitiesWithComponents(room: Room, components: Component[]): Entity[] {
         const entities: Entity[] = [];
 

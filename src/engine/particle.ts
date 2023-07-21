@@ -1,3 +1,9 @@
+/* 
+ * engine/particle.ts
+ *
+ * Contains the class which represents a single particle.
+ */
+
 import { Vec } from "../helpers";
 import Game from "../game";
 

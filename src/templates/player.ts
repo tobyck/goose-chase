@@ -19,7 +19,7 @@ export const newPlayerEntity = (game: Game, pos: Vec): Entity => {
         new Rect(0, 0, 16, 16)
     ]);
 
-    game.ecs.addComponent(player, components.SpeedComponent, [2]);
+    game.ecs.addComponent(player, components.SpeedComponent, [3]);
     game.ecs.addComponent(player, components.WalkingComponent, [true]);
     game.ecs.addComponent(player, components.ControllableComponent);
     game.ecs.addComponent(player, components.HandsComponent, [null, null]);

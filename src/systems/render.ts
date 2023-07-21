@@ -9,15 +9,35 @@
 
 import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
+import { drawLine, Vec } from "../helpers";
 
 export default class RenderSystem extends System {
+    ignoreAUC = true;
+
     constructor() {
         super([
             components.PositionComponent,
             components.ImageComponent,
         ], SystemTrigger.Tick, (game, entity) => {
-            // get the position and speed components
             const positionComponent = game.ecs.getComponent(entity, components.PositionComponent);
+
+            // draw line showing direction of goose
+            if (game.keys["h"] && game.ecs.hasComponent(entity, components.EvaderComponent)) {
+                const evaderPosition = game.ecs.getComponent(entity, components.PositionComponent);
+                const evaderSpeed = game.ecs.getComponent(entity, components.SpeedComponent);
+
+                drawLine(
+                    game.ctx,
+                    "red",
+                    evaderPosition.pixels,
+                    evaderPosition.pixels.shifted(new Vec(
+                        evaderSpeed.speedX * game.canvas.width * 2,
+                        evaderSpeed.speedY * game.canvas.width * 2
+                    )),
+                    game.tileSize / 2
+                );
+            }
+
             const imageComponent = game.ecs.getComponent(entity, components.ImageComponent);
 
             // draw the image at the specified position

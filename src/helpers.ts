@@ -1,5 +1,5 @@
 /* 
- * util.ts
+ * helpers.ts
  *
  * This file contains useful miscellaneous functions and 
  * classes used throughout the codebase.
@@ -167,13 +167,7 @@ export const attemptPlace = (game: Game, hands: components.HandsComponent, pos: 
      * into the next room, but wouldn't taken into account in the collision
      * detection because it's not in the player's room.
      */
-    if (
-        hands.allEmpty() ||
-        pos.x < game.tileSize / 2 ||
-        pos.y < game.tileSize / 2 ||
-        pos.x > (game.roomSize.x - 1) * game.tileSize - game.tileSize / 2 ||
-        pos.y > (game.roomSize.y - 1) * game.tileSize - game.tileSize / 2
-    ) return false;
+    if (hands.allEmpty()) return false;
 
     const [item, hand] = hands.takeItem();
 
@@ -222,7 +216,7 @@ export const cloneAudio = (audio: HTMLAudioElement): HTMLAudioElement => {
  * @param entity The entity to try to move
  */
 
-export const tryMove = (game: Game, entity: Entity): void => {
+export const tryMove = (game: Game, room: Room, entity: Entity): void => {
     const position = game.ecs.getComponent(entity, components.PositionComponent);
     const speed = game.ecs.getComponent(entity, components.SpeedComponent);
 
@@ -231,26 +225,12 @@ export const tryMove = (game: Game, entity: Entity): void => {
 
     position.pixels.x += speedX; // move by x speed
     // if there's a collision, move back
-    if (
-        anyHitboxesCollide(game, entity) || (
-            // if the entity is an NPC, don't let it go near the edge
-            entity !== game.player && (
-                position.pixels.x < game.tileSize / 2 ||
-                position.pixels.x > game.canvas.width - game.tileSize * 1.5
-            )
-        )
-    ) position.pixels.x -= speedX;
+    if (anyHitboxesCollide(game, entity, room)) position.pixels.x -= speedX;
 
     // same thing with y speed
     position.pixels.y += speedY;
-    if (
-        anyHitboxesCollide(game, entity) || (
-            entity !== game.player && (
-                position.pixels.y < game.tileSize / 2 ||
-                position.pixels.y > game.canvas.height - game.tileSize * 1.5
-            )
-        )
-    ) position.pixels.y -= speedY;
+    if (anyHitboxesCollide(game, entity, room)) position.pixels.y -= speedY;
+
 };
 
 /**
@@ -266,15 +246,41 @@ export const setRandomEntityPos = (game: Game, room: Room, entity: Entity): void
 
     do {
         // set position on tile grid then add random offset
+        // (also makes sure it's not too close to a wall)
         pixelPos = new Vec(
             (randInt(2, game.roomSize.x - 3) + Math.random() - .5) * game.tileSize,
             (randInt(2, game.roomSize.y - 3) + Math.random() - .5) * game.tileSize
         );
 
-        game.ecs.addComponent(entity, components.PositionComponent, [pixelPos, room.pos]);
+        game.ecs.addComponent(entity, components.PositionComponent, [pixelPos, room.pos.clone()]);
     } while (anyHitboxesCollide(game, entity, room));
 };
 
+export const drawLine = (
+    ctx: CanvasRenderingContext2D,
+    colour: string,
+    start: Vec,
+    end: Vec,
+    offset = 0
+): void => {
+    ctx.strokeStyle = colour;
+    ctx.beginPath();
+    ctx.moveTo(start.x + offset, start.y + offset);
+    ctx.lineTo(end.x + offset, end.y + offset);
+    ctx.stroke();
+};
+
+export const shuffle = <T>(array: T[]): T[] => array
+    .map(value => ({ value, rand: Math.random() })) // add random number to each element
+    .sort((a, b) => a.rand - b.rand) // sort by that random number
+    .map(({ value }) => value); // extract the value
+
+// next two functions are just here to get around circular dependencies
+
 export const isHidden = (ecs: ECS, entity: Entity): boolean => {
     return ecs.hasComponent(entity, components.HiddenComponent);
+};
+
+export const shouldAlwaysUpdate = (ecs: ECS, entity: Entity): boolean => {
+    return ecs.hasComponent(entity, components.AlwaysUpdateComponent);
 };

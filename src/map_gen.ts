@@ -1,5 +1,5 @@
 /* 
- * engine/mapgen.ts
+ * engine/map_gen.ts
  *
  * This file is responsible for generating the map (a flat array of rooms),
  * adding wall entities, and leaving gaps for doors into adjacent rooms
@@ -62,7 +62,7 @@ export const generateMap = (game: Game): Room[] => {
                 to: Room,
                 door: "top" | "bottom" | "left" | "right" // which door to take
             ): void => {
-                if (!roomAtVec(from)) return; // if there's no room there, return
+                if (!roomAtVec(from)) return; // if there's no room there, exit
 
                 to.doors[door] = roomAtVec(from).doors[
                     // get the opposite door

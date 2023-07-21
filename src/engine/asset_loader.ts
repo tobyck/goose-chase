@@ -37,6 +37,7 @@ export class AssetLoader {
         this.progressBar = progressBar;
     }
 
+    // sets the CSS width property of the progress bar to the percentage of assets loaded
     adjustProgressBar() {
         this.progressBar.style.width = `calc((100% - 1vh) * ${this.#totalResolved / this.#sources.length})`;
     }

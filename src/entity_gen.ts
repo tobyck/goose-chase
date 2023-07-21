@@ -1,5 +1,5 @@
 /* 
- * engine/itemgen.ts
+ * engine/entity_gen.ts
  *
  * This file contains the addEntities function, which takes in a reference to the
  * game object and adds different entities like food and enemies into the map 
@@ -8,10 +8,11 @@
  */
 
 import * as components from "./components";
-import { randInt, Rect } from "./helpers";
+import { randInt, Rect, Vec } from "./helpers";
 import type Game from "./game";
 import { newItemEntity } from "./templates/item";
 import { newZombieEntity } from "./templates/zombie";
+import { newGooseEntity } from "./templates/goose";
 
 export const addEntities = (game: Game): void => {
     for (const room of game.rooms) { // for each room in the map
@@ -21,7 +22,8 @@ export const addEntities = (game: Game): void => {
                 game,
                 room,
                 game.getImage("items"),
-                new Rect(0, 0, 16, 16),
+                new Rect(0, 0, 16, 16), // frame in the spritesheet
+                // hitbox very slightly smaller than the tile
                 new Rect(1, 1, game.tileSize - 1, game.tileSize - 1)
             );
         }
@@ -31,15 +33,29 @@ export const addEntities = (game: Game): void => {
         }
     }
 
-    // add a stick in the room the player starts in
+    // add a sword in the room the player starts in
 
-    const stick = newItemEntity(
+    const sword = newItemEntity(
         game,
         game.roomAt(game.playerRoomPos),
         game.getImage("items"),
-        new Rect(0, 16, 16, 16)
+        new Rect(0, 32, 16, 16) // frame in the spritesheet
     );
 
-    game.ecs.addComponent(stick, components.WeaponComponent, [5]);
+    // add a weapon component to the sword with 7 damage
+    game.ecs.addComponent(sword, components.WeaponComponent, [7]);
 
+    // add the goose
+
+    const gooseRoomVec = new Vec(null, null);
+
+    do { // place the goose in a random room on the edge of the map
+        // randomize whether the goose is in the top/bottom row of rooms or left/right columns
+        const [a, b] = Math.random() < .5 ? "xy" : "yx";
+        gooseRoomVec[a] = Math.random() < .5 ? 0 : game.roomCount[a] - 1;
+        gooseRoomVec[b] = randInt(0, game.roomCount[b] - 1);
+    } while (game.level > 1 && Vec.equal(gooseRoomVec, game.playerRoomPos));
+
+    // make new goose entity and store it in the game object to we know its id
+    game.goose = newGooseEntity(game, gooseRoomVec);
 };

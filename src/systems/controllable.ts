@@ -1,7 +1,7 @@
 /* 
  * systems/controllable.ts
  *
- * This system is responsible for adjusting the horizontal and vertical speed
+ * This system is responsible for adjusting the horizontal and vertical speeds
  * (stored in the speed component) of controllable entities based on keyboard
  * input. The system doesn't actually move the entity - that's done by the 
  * walking system in walking.ts.

@@ -1,5 +1,5 @@
 /* 
- * systems/healthbar.ts
+ * systems/health_bar.ts
  *
  * Renders all the health bars for entities that have a health component.
  * This is done after the main renderer so that the health bars are always
@@ -10,6 +10,8 @@ import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
 
 export default class HealthBarSystem extends System {
+    ignoreAUC = true;
+
     constructor() {
         super([
             components.HealthComponent,

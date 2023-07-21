@@ -18,6 +18,9 @@ import WeaponSystem from "./systems/weapon";
 import Followsystem from "./systems/follow";
 import ClickSystem from "./systems/click";
 import ParticleSystem from "./systems/particles";
+import RespawnSystem from "./systems/respawn";
+import EvadeSystem from "./systems/evade";
+import HuntSystem from "./systems/hunt";
 
 // imports from the engine
 import { Asset, Assets } from "./engine/asset_loader";
@@ -30,8 +33,6 @@ import { Particle } from "./engine/particle";
 import { newPlayerEntity } from "./templates/player";
 import { generateMap } from "./map_gen";
 import { Rect, Vec } from "./helpers";
-import RespawnSystem from "./systems/respawn";
-import HuntSystem from "./systems/hunt";
 import { showGameStoppedScreen } from "./gui";
 
 type EventHandler = (event?: Event) => void;
@@ -55,6 +56,7 @@ export default class Game {
     readonly level: number;
     readonly ecs = new ECS(this);
     readonly player: Entity;
+    goose: Entity;
 
     toRespawn: Entity[] = [];
 
@@ -95,6 +97,7 @@ export default class Game {
         this.shouldPlayMusic = shouldPlayMusic;
         this.shouldPlaySFX = shouldPlaySFX;
 
+        // room dimensions:
         // level 1: 1x1
         // level 2: 2x1
         // level 3: 2x2
@@ -163,8 +166,9 @@ export default class Game {
             // systems that set speeds
             ControllableSystem,
             Followsystem,
+            EvadeSystem,
 
-            // system that moves them
+            // system that actually moves entities
             WalkingSystem,
 
             // input systems
@@ -212,6 +216,7 @@ export default class Game {
         ]);
 
         this.ecs.addComponent(itemBox, components.HitboxComponent, [Rect.fromVecs(
+            // scale up pixels from spritesheet to pixels on canvas
             new Vec(11, 11).scaled(16, this.tileSize),
             new Vec(26, 26).scaled(16, this.tileSize)
         )]);
@@ -223,11 +228,14 @@ export default class Game {
         return this.ecs.getComponent(this.player, components.PositionComponent).room;
     }
 
-    roomAt(pos: Vec) {
+    // returns the Room object at 
+    roomAt(pos: Vec): Room {
         return this.rooms.find(room => Vec.equal(room.pos, pos));
     }
 
-    getAsset(name: string) {
+    // returns the actual asset matching the given name 
+    // (this will either be an image or an audio element)
+    getAsset(name: string): Asset {
         const assetArray: Asset[] = [];
 
         for (const assetSubArr in this.assets) {
@@ -237,6 +245,8 @@ export default class Game {
         return assetArray.find(asset => new RegExp(`${name}\\.[^\\.]+`).test(asset.src));
     }
 
+    // methods to case the result of getAsset
+
     getImage(name: string) {
         return this.getAsset(name) as CanvasImageSource;
     }
@@ -245,6 +255,7 @@ export default class Game {
         return this.getAsset(name) as HTMLAudioElement;
     }
 
+    // adds all the necessary event listeners and remembers them in an object
     addEventListeners(): Record<string, EventListener> {
         const listeners = {
             "blur": this.pause.bind(this),
@@ -283,11 +294,14 @@ export default class Game {
         return listeners;
     }
 
+    // removes all event listeners added by Game.addEventListeners
     removeEventListeners(): void {
         Object.entries(this.eventListeners).forEach(([type, listener]) => {
             document.removeEventListener(type, listener);
         });
     }
+
+    // methods to start/stop the game
 
     start() {
         this.paused = false;
@@ -308,7 +322,6 @@ export default class Game {
         if (!this.paused) {
             showGameStoppedScreen("Game Paused", "Quit", true);
             this.removeEventListeners();
-            this.paused = true;
             this.getAudio("music").pause();
         }
     }

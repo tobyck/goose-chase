@@ -1,3 +1,10 @@
+/* 
+ * systems/respawn.ts
+ *
+ * Respawns entities with the RespawnableComponent after they have been dead
+ * for long enough (time until respawn is set in the component).
+ */
+
 import * as components from "../components";
 import { System, SystemTrigger } from "../engine/ecs";
 import { anyHitboxesCollide, setRandomEntityPos } from "../helpers";
@@ -24,6 +31,7 @@ export default class RespawnSystem extends System {
                         setRandomEntityPos(game, game.roomAt(position.room), entity);
                     }
 
+                    // make sure entities don't respawn underneath things
                     game.ecs.bringToFront(entity);
 
                     // remove it from the list of entities to respawn

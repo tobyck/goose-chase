@@ -100,10 +100,12 @@ export class Room {
         // work for them even in other rooms and they're rendered on top)
         return [this.game.leftHandItemBox, this.game.rightHandItemBox].concat(
             this.game.ecs.entities.filter(entity => {
+                // if the entity doesn't have a position component, it can't be in a room
                 if (!this.game.ecs.hasComponent(entity, components.PositionComponent)) {
                     return false;
                 }
 
+                // return whether the entity's room is this room
                 return Vec.equal(
                     this.game.ecs.getComponent(entity, components.PositionComponent).room,
                     this.pos

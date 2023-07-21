@@ -88,6 +88,7 @@ $<Button>(".resume-button").onclick = () => {
 
 // show a screen with a message, a button to return to the menu, and an optional button to resume the game
 export const showGameStoppedScreen = (message: string, backButtonText: string, canResume: boolean) => {
+    window["game"].paused = true;
     $<Div>("canvas").hidden = true;
     $<Div>(".game-stopped").hidden = false;
     $<Div>(".game-stopped .message").textContent = message;
@@ -110,6 +111,7 @@ const assetLoader = new AssetLoader(
         { type: AssetType.Image, path: "assets/images/items.png" },
         { type: AssetType.Image, path: "assets/images/item_box.png" },
         { type: AssetType.Image, path: "assets/images/zombie.png" },
+        { type: AssetType.Image, path: "assets/images/goose.png" },
         { type: AssetType.Audio, path: "assets/sounds/music.mp3" },
         { type: AssetType.Audio, path: "assets/sounds/footstep.mp3" },
         { type: AssetType.Audio, path: "assets/sounds/pick_up.mp3" },

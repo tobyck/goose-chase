@@ -71,7 +71,6 @@ export default class ClickSystem extends System {
                 return ret;
             });
 
-            // use hit function
             hit(game, entity, entityToHit ?? null);
         });
     }

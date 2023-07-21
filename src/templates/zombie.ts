@@ -20,6 +20,7 @@ export const newZombieEntity = (game: Game, room: Room) => {
 
     const playerVelocity = game.ecs.getComponent(game.player, components.SpeedComponent).velocity;
 
+    // between playerVelocity / 3 and 2 * playerVelocity / 3 relative to level
     game.ecs.addComponent(zombie, components.SpeedComponent, [
         (playerVelocity / 3) + (playerVelocity / 3) * (game.level / Game.maxLevel)
     ]);
@@ -28,8 +29,9 @@ export const newZombieEntity = (game: Game, room: Room) => {
         game.player, (game.roomSize.x / 2) + (game.roomSize.x / 2) * game.level / Game.maxLevel
     ]);
 
+    // health between 20 and 70 relative to level
     game.ecs.addComponent(zombie, components.HealthComponent, [
-        10 + 110 * (game.level / Game.maxLevel),
+        70 * (game.level / Game.maxLevel) + 20,
         game,
         zombie
     ]);
@@ -48,25 +50,24 @@ export const newZombieEntity = (game: Game, room: Room) => {
         minTimeUntilRespawn + 5000
     ]]);
 
-    //console.log(`zombie settings:\nspeed = ${game.ecs.getComponent(zombie, components.SpeedComponent).velocity}\nmax follow dist = ${game.ecs.getComponent(zombie, components.FollowComponent).maxTiles}\nhealth = ${game.ecs.getComponent(zombie, components.HealthComponent).maxHealth}\ntime between hits = ${game.ecs.getComponent(zombie, components.HunterComponent).timeBetweenHitsRange}\nrespawn = ${game.ecs.getComponent(zombie, components.RespawnableComponent).timeUntilRespawnRange}`)
+    // make a sword for the zombie
+    // todo: make relative to level
 
-    // make a stick for the zombie
+    const sword = game.ecs.createEntity();
 
-    const stick = game.ecs.createEntity();
-
-    game.ecs.addComponent(stick, components.ImageComponent, [
+    game.ecs.addComponent(sword, components.ImageComponent, [
         game.getImage("items"),
-        new Rect(0, 16, 16, 16)
+        new Rect(16, 32, 16, 16)
     ]);
 
-    game.ecs.addComponent(stick, components.PositionComponent, [
+    game.ecs.addComponent(sword, components.PositionComponent, [
         new Vec(game.canvas.width, game.canvas.height), room.pos
     ]);
 
-    game.ecs.addComponent(stick, components.HoldableComponent);
-    game.ecs.addComponent(stick, components.WeaponComponent, [5]);
+    game.ecs.addComponent(sword, components.HoldableComponent);
+    game.ecs.addComponent(sword, components.WeaponComponent, [10]); // sword does 10 damage
 
-    game.ecs.addComponent(zombie, components.HandsComponent, [stick, null]);
+    game.ecs.addComponent(zombie, components.HandsComponent, [sword, null]);
     game.ecs.addComponent(zombie, components.WalkingComponent, [false]);
     game.ecs.addComponent(zombie, components.ParticleColourComponent, ["#bb0000"]);
 };

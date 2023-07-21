@@ -61,9 +61,10 @@ export class SpeedComponent implements Component {
         this.speedY = 0;
     }
 
+    // returns x and y speeds that will result moving by dx and dy at this.velocity
     speedsTo(dx: number, dy: number): [number, number] {
         const hypot = Math.hypot(dx, dy);
-        return [dx / hypot * this.velocity, dy / hypot * this.velocity];
+        return [(dx / hypot * this.velocity) || 0, (dy / hypot * this.velocity) || 0];
     }
 
     get currentVelocity(): number {
@@ -154,23 +155,25 @@ export class HealthComponent implements Component {
     }
 
     damage(amount: number): void {
-        this.health = Math.max(this.health - amount, 0);
+        this.health -= amount;
 
-        if (this.health === 0) {
+        if (this.health <= 0) {
             if (this.#entity === this.#game.player) {
                 showGameStoppedScreen("Game Over", "Menu", false);
                 this.#game.paused = true;
+            } else if (this.#entity === this.#game.goose) {
+                showGameStoppedScreen("You Win!", "Menu", false);
             } else {
                 if (this.#game.ecs.hasComponent(this.#entity, ParticleColourComponent)) {
                     Particle.createBurst(
                         this.#game,
-                        17,
-                        17,
+                        17, // number of particles
+                        17, // delay between creation of each particle
                         this.#game.ecs
                             .getComponent(this.#entity, PositionComponent)
                             .getCentre(this.#game.tileSize),
-                        0.08,
-                        0.997,
+                        0.1, // speed
+                        0.997, // friction
                         this.#game.ecs.getComponent(this.#entity, ParticleColourComponent).colour,
                     );
                 }
@@ -234,7 +237,9 @@ export class FollowComponent implements Component {
     maxTiles: number; // how close the target has to be before the entity starts following
 
     randomWalkAngle = Math.random() * Math.PI * 2; // random angle to walk in when the target is too far away
-    timeOflastAngleChange = 0; // time when the random walk angle was last changed
+    timeOfLastAngleChange = 0; // time when the random walk angle was last changed
+
+    static readonly angleChangeInterval = 2000; // how often the random walk angle changes
 
     constructor(target: Entity, maxTiles: number) {
         this.target = target;
@@ -279,5 +284,15 @@ export class HunterComponent implements Component {
     constructor(target: Entity, timeBetweenHitsRange: [number, number]) {
         this.target = target;
         this.timeBetweenHitsRange = timeBetweenHitsRange;
+    }
+}
+
+export class AlwaysUpdateComponent implements Component { }
+
+export class EvaderComponent implements Component {
+    entityToEvade: Entity;
+
+    constructor(entityToEvade: Entity) {
+        this.entityToEvade = entityToEvade;
     }
 }

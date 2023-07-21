@@ -70,7 +70,7 @@ h1 {
 .sub-container {
     background-color: #222;
     padding: 4vh;
-    width: 60vh;
+    width: 45vh;
     border-radius: 2vh;
     display: flex;
     flex-direction: column;
@@ -102,7 +102,12 @@ h1 {
     transition: color .2s ease;
 }
 
-.level-selector button:hover, .switch:hover {
+.music-link {
+    text-decoration: none;
+    transition: color .2s ease;
+}
+
+.level-selector button:hover, .switch:hover, .music-link:hover {
     color: #bbb;
 }
 
