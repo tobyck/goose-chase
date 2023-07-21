@@ -38,10 +38,14 @@ export const newZombieEntity = (game: Game, room: Room) => {
 
     const minTimeBetweenHits = 1000 - 500 * game.level / Game.maxLevel;
 
-    game.ecs.addComponent(zombie, components.HunterComponent, [game.player, [
-        minTimeBetweenHits,
-        minTimeBetweenHits + 1000
-    ]]);
+    game.ecs.addComponent(zombie, components.HunterComponent, [
+        game.player,
+        [
+            minTimeBetweenHits,
+            minTimeBetweenHits + 1000,
+        ],
+        1.5
+    ]);
 
     const minTimeUntilRespawn = 8000 - 5000 * game.level / Game.maxLevel;
 

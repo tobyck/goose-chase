@@ -43,7 +43,7 @@ export default class ClickSystem extends System {
                 const dist = entityPosition.pixels.distTo(otherEntityPosition.pixels);
 
                 // ignore entities that are too far away for the player to reach
-                if (dist > game.tileSize * game.minHitDist) return false;
+                if (dist > game.tileSize * 1.8) return false;
 
                 // variable to remember if the entity's hitbox is temporary
                 let hasTempHitbox = false;

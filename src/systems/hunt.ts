@@ -28,7 +28,7 @@ export default class HuntSystem extends System {
             const distToTarget = hunterPos.pixels.distTo(targetPos.pixels);
 
             if ( // if the target is close enough and enough time has passed since the last hit
-                distToTarget < game.tileSize * game.minHitDist &&
+                distToTarget < game.tileSize * hunterComponent.maxHitDist &&
                 performance.now() - hunterComponent.timeOfLastHit > hunterComponent.timeUntilNextHit
             ) {
                 // set the time of the last hit to now

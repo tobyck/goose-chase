@@ -62,9 +62,6 @@ export default class Game {
 
     particles: Particle[] = [];
 
-    // maximum distance (in tiles) that an entity can be from the entity it wants to hit
-    readonly minHitDist = 1.7;
-
     currentFrameRate: number;
     timeOfLastFrame = 0;
 

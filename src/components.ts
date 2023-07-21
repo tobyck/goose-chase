@@ -280,10 +280,12 @@ export class HunterComponent implements Component {
     timeUntilNextHit = 0;
     readonly timeBetweenHitsRange: [number, number]; // in milliseconds
 
+    maxHitDist: number; // how close the target has to be before the hunter hits it
 
-    constructor(target: Entity, timeBetweenHitsRange: [number, number]) {
+    constructor(target: Entity, timeBetweenHitsRange: [number, number], maxHitDist: number) {
         this.target = target;
         this.timeBetweenHitsRange = timeBetweenHitsRange;
+        this.maxHitDist = maxHitDist;
     }
 }
 
